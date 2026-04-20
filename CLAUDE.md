@@ -1,0 +1,144 @@
+# CLAUDE.md
+
+## Project Overview
+
+OpenShift cluster fleet management control plane for Red Hat OpenShift Partner Labs. Hub-and-spoke architecture using Tekton (workflows), ArgoCD (manifest delivery), and ACM/Hive (cluster lifecycle). This repo holds declarative cluster definitions, Tekton pipelines, and hub config — not spoke workloads.
+
+## Repo Layout
+
+```
+bootstrap/    — Hub bootstrap (ArgoCD, Tekton install, ACM config)
+tekton/       — Pipeline, Task, EventListener, Trigger definitions
+clusters/     — One directory per cluster (spec, tier label, overrides)
+hub-config/   — cert-manager, Vault/ESO, baseline hub operators
+workloads/    — Tier-specific day-2 overlays (base / virt / ai)
+docs/         — Architecture, runbooks, diagrams
+```
+
+## Development Workflow
+
+### Planning is mandatory
+
+Every task — feature, bugfix, refactor — MUST begin with a written plan. Use `EnterPlanMode` or equivalent before writing any code. The plan must be reviewed and agreed upon before implementation begins.
+
+### Required workflow: Plan -> Test -> Code -> Commit
+
+Follow this cycle strictly, in order:
+
+1. **Plan** — Write a clear plan for the change. Identify affected files, dependencies, and risks.
+2. **Test** — Write failing tests first (TDD). Tests define the acceptance criteria.
+3. **Code** — Write the minimum code to make tests pass.
+4. **Commit** — Small, incremental commit with a conventional commit message.
+
+Repeat this cycle for each logical unit of work. Never skip steps or reorder them.
+
+### Testing and Validation
+
+**What gets tested and how:**
+
+| Artifact | Tool | When |
+|----------|------|------|
+| All YAML | `yamllint` | Every commit (tox, pre-commit) |
+| Tekton Task/Pipeline YAML | `tekton-lint` | Every commit (tox) |
+| Kustomize overlays | `kustomize build` + `kubeconform` | Every commit (tox) |
+| Python CLI tools | `pytest` with 100% coverage | Every commit (tox) |
+| Pipeline integration | Manual `tkn pipeline start` on hub | Per-phase acceptance |
+| End-to-end lifecycle | Provision → post-provision → deprovision on test cluster | Phase 3+ |
+
+**Test directory layout:**
+
+```
+tests/
+├── conftest.py
+├── unit/           # Python CLI tool tests (all tasks)
+├── validation/     # kustomize build + kubeconform checks
+└── data/           # fixtures (sample cluster dirs, expected outputs)
+```
+
+**Rules:**
+- `tox` orchestrates all checks — `tox` must pass before any commit
+- Validation tests for Kustomize overlays come before the YAML they validate
+- Python CLI tools require pytest tests before implementation (TDD)
+- Integration tests are run manually against a real hub cluster, not in CI initially
+
+### Code Quality
+
+**Linting (all via `tox`):**
+- `yamllint` — all YAML files
+- `tekton-lint` — Tekton Task/Pipeline definitions
+- `ansible-lint` — Ansible playbooks/roles (when Ansible is added)
+- `black` + `mypy` + `pylint` + `bandit` — Python code (from Phase 1)
+
+**Pre-commit hooks:**
+- `gitleaks` — secret detection on every push
+
+**`tox` is the single entry point** — never run linters individually in CI or commit workflows.
+
+## Git Constraints
+
+### Branching
+
+- NEVER work directly on `main`
+- Create a new branch for every feature, bugfix, or task
+- Branch names should be descriptive: `feat/provision-pipeline`, `fix/cert-rotation-timeout`
+- MUST use git worktrees for parallel work
+
+### Commits
+
+- Small, incremental commits — one logical change per commit
+- Use [Conventional Commits](https://www.conventionalcommits.org/) specification:
+  - `feat:` new feature
+  - `fix:` bug fix
+  - `docs:` documentation only
+  - `test:` adding or updating tests
+  - `refactor:` code change that neither fixes a bug nor adds a feature
+  - `chore:` maintenance tasks
+  - `ci:` CI/CD changes
+- Scope is encouraged: `feat(provision): add validate-inputs task`
+- NEVER push to remote — the user will push when ready
+- NEVER amend commits unless explicitly asked
+
+### Worktrees
+
+- Use git worktrees when working on features to isolate changes
+- Each feature branch should have its own worktree
+- Clean up worktrees when work is complete
+
+## Technology Stack
+
+### Tekton Tasks
+
+- **All** Tekton task logic lives in Python CLI tools, packaged via `pyproject.toml` entry points
+- Tekton Task YAML contains only a thin bash stub that calls the Python CLI entry point
+- Python tools are built into a custom pipeline container image (single image for all tasks)
+- Scripts: single-purpose, fail fast, 100% pytest coverage required
+- Image tag pinned in one place (pipeline param or ConfigMap), not scattered across Task YAML
+
+### Automation
+
+- Use **Ansible** when possible for configuration management and imperative operations
+- Ansible is preferred over raw shell scripts for multi-step configuration
+- Use Ansible roles/playbooks for repeatable spoke configuration
+
+### Kubernetes/OpenShift
+
+- Kustomize for manifest templating (no Helm unless existing charts require it)
+- YAML manifests follow OpenShift conventions
+- Cluster definitions live under `clusters/<name>/`
+- Tier labels on ManagedCluster: `tier=base|virt|ai`
+
+## Architecture Principles
+
+- ArgoCD reconciles declarative state — never use it as a workflow engine
+- Tekton runs ordered workflows — provision, post-provision, deprovision
+- ACM/Hive controls cluster lifecycle
+- Each tool does one job
+- Hub holds secrets and signing authority; spokes receive only derived artifacts
+- No hub Secret data or PII committed to git or written to spokes as-is
+
+## Reasoning
+
+- Never use inefficient reasoning — be direct, precise, and purposeful
+- Do not speculate when you can verify
+- Do not generate verbose explanations when a concise answer suffices
+- Prefer reading code/docs over guessing about behavior
