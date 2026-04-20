@@ -16,7 +16,8 @@ It does **not** hold: day-2 workloads, tenant application manifests, or anything
 - **Tekton** (OpenShift Pipelines) — workflow engine for provision, post-provision, and deprovision
 - **ArgoCD** (OpenShift GitOps) — manifest delivery to the hub + day-2 workload delivery to spokes via `ApplicationSet`
 - **ACM + Hive** — fleet membership and cluster provisioning
-- **cert-manager + Vault** — hub-side secret authority; spokes receive only derived artifacts
+- **cert-manager** — hub-side TLS certificate management; spokes receive only derived artifacts
+- **Crossplane** — per-cluster IAM user generation (pre-installed prerequisite, not managed by this repo)
 
 The guiding rule: *ArgoCD reconciles declarative state. Tekton runs ordered workflows. ACM/Hive controls cluster lifecycle.* Each tool does one job.
 
@@ -27,7 +28,8 @@ The guiding rule: *ArgoCD reconciles declarative state. Tekton runs ordered work
 ├── bootstrap/          # Hub bootstrap (ArgoCD, Tekton install, ACM config)
 ├── tekton/             # Pipeline, Task, EventListener, Trigger definitions
 ├── clusters/           # One directory per cluster (spec, tier label, overrides)
-├── hub-config/         # cert-manager, Vault/ESO, baseline hub operators
+├── hub-config/         # cert-manager, baseline hub operators
+├── cluster-templates/  # Kustomize bases for cluster specs (by tier)
 ├── workloads/          # Tier-specific day-2 overlays (base / virt / ai)
 └── docs/               # Architecture, runbooks, diagrams
 ```

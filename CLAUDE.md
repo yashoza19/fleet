@@ -7,12 +7,13 @@ OpenShift cluster fleet management control plane for Red Hat OpenShift Partner L
 ## Repo Layout
 
 ```
-bootstrap/    — Hub bootstrap (ArgoCD, Tekton install, ACM config)
-tekton/       — Pipeline, Task, EventListener, Trigger definitions
-clusters/     — One directory per cluster (spec, tier label, overrides)
-hub-config/   — cert-manager, Vault/ESO, baseline hub operators
-workloads/    — Tier-specific day-2 overlays (base / virt / ai)
-docs/         — Architecture, runbooks, diagrams
+bootstrap/          — Hub bootstrap (ArgoCD, Tekton install, ACM config)
+tekton/             — Pipeline, Task, EventListener, Trigger definitions
+clusters/           — One directory per cluster (spec, tier label, overrides)
+hub-config/         — cert-manager, baseline hub operators
+cluster-templates/  — Kustomize bases for cluster specs (by tier)
+workloads/          — Tier-specific day-2 overlays (base / virt / ai)
+docs/               — Architecture, runbooks, diagrams
 ```
 
 ## Development Workflow

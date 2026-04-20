@@ -9,6 +9,8 @@ The `labargocd` repo uses an ArgoCD app-of-apps pattern to orchestrate OpenShift
 - **TLS**: Keep Let's Encrypt with per-cluster AWS credentials for Route53 DNS-01 validation
 - **Scope**: Full implementation YAML for each phase
 
+**Prerequisites**: Crossplane is pre-installed on the hub for per-cluster IAM user generation. It is not managed by this repo — only the Provider/ProviderConfig resources are carried over for ArgoCD to reconcile.
+
 **Source repo**: `labargocd`
 **Target repo**: `fleet`
 
@@ -2119,9 +2121,22 @@ If deprovision pipeline fails mid-run, resources are in known state (pipeline lo
 
 ---
 
-## Phase 4: Post-Provision Pipeline (SSL + Tier Branching)
+## Phase 4: Post-Provision (SSL + IDP + Tier Configuration)
 
-**Goal**: Build post-provision pipeline with Let's Encrypt TLS, tier-specific operator installation (base/virt/ai), and IDP configuration. Chain from provision pipeline.
+> **Open question:** The post-provision approach is not yet decided. Two models are under consideration:
+>
+> 1. **Tekton pipeline** (original design, shown below) — imperative tasks for SSL cert derivation, IDP secret push, tier-specific operator installation. Full pipeline controls ordering.
+> 2. **Layered ArgoCD ApplicationSets** — tier-specific workloads (operators, config) delivered declaratively via multiple ApplicationSets with different ACM Placement label selectors (see Phase 5). This would handle tier branching without a Tekton pipeline.
+>
+> **What is clear:**
+> - SSL cert derivation (request on hub, derive leaf cert, push to spoke across trust boundary) requires imperative steps — cannot be pure ArgoCD.
+> - IDP secret push to spoke also requires imperative steps.
+> - Tier-specific operator delivery (virt operators, AI operators) *can* be handled by layered ApplicationSets.
+> - The layered ApplicationSet pattern from Phase 5 may absorb the tier-branching responsibilities originally planned for this phase.
+>
+> **Decision needed before implementation.** The Tekton task definitions below are preserved as reference for the imperative steps. The tier-branching tasks (`apply-tier-virt`, `apply-tier-ai`, `apply-tier-base`, `verify-tier`) may be replaced by ApplicationSets.
+
+**Goal**: Handle post-provision configuration: SSL/TLS setup, IDP configuration, and tier-specific workload delivery. The imperative steps (SSL, IDP) will use Tekton; the tier workload delivery approach is TBD.
 
 ### Files to create
 

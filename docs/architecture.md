@@ -16,7 +16,7 @@
 | **Cluster provisioning** | Hive, driven by ArgoCD-applied CRs | Hive, driven by Tekton-applied CRs |
 | **Wait for cluster ready** | PostSync `Job` polling every 30s | `oc wait --for=condition=Provisioned` inside a Tekton task |
 | **Secret protection during deprovision** | Custom finalizers + cluster-wide 5-min `CronJob` | Pipeline controls the order; no custom finalizers needed |
-| **Tier variation (virt / AI / base)** | N/A (not yet supported cleanly) | `when` expressions in the post-provision pipeline |
+| **Tier variation (virt / AI / base)** | N/A (not yet supported cleanly) | Tekton post-provision for imperative steps; tier workload delivery approach TBD (see §7) |
 | **Hub → spoke secret handoff** | Out-of-band `oc create secret` + implicit trust | Explicit Tekton task that derives and pushes the minimum |
 | **Total deprovision time** | 15–25 min (up to 5 min CronJob poll tail) | ~15–20 min, deterministic, no poll tail |
 
@@ -86,9 +86,9 @@ We have effectively re-implemented a workflow engine on top of a reconciler, usi
 └──────────────────────────────────────────────────────────────────┘
 ```
 
-- **ArgoCD** delivers *static* manifests to the hub (ACM install, Tekton pipelines, cert-manager config, baseline operators). It is no longer responsible for ordering the cluster lifecycle.
+- **ArgoCD** delivers *static* manifests to the hub (ACM install, Tekton pipelines, cert-manager config, baseline operators). It is no longer responsible for ordering the cluster lifecycle. **Crossplane** is a pre-installed prerequisite for per-cluster IAM user generation but is not managed by this repo.
 - **ArgoCD `ApplicationSet`** with the ACM cluster generator delivers *day-2 workloads* to spokes once Tekton has labeled them `bootstrapped=true`.
-- **Tekton** owns three workflows: **provision**, **post-provision** (with tier branching), and **deprovision**. Each is a single auditable `PipelineRun` per cluster operation.
+- **Tekton** owns three workflows: **provision**, **post-provision** (SSL, OAuth/IDP, RBAC), and **deprovision**. Each is a single auditable `PipelineRun` per cluster operation.
 - **ACM / Hive** continues to provision clusters and manage fleet membership. No change to its role.
 - **Git** remains the source of truth. Tekton `EventListener` on webhooks from the repo decides which pipeline to kick off based on the path that changed.
 
@@ -102,7 +102,7 @@ flowchart TB
         GitClusters["clusters/NAME/<br/>(ClusterDeployment, MachinePool,<br/>install-config, tier label)"]
         GitPipelines["tekton/pipelines/<br/>(provision, post-provision, deprovision)"]
         GitWorkloads["workloads/TIER/<br/>(day-2 manifests)"]
-        GitHubConfig["hub-config/<br/>(ACM, Tekton, cert-manager, Vault)"]
+        GitHubConfig["hub-config/<br/>(ACM, Tekton, cert-manager)"]
     end
 
     subgraph Hub["HUB CLUSTER (trusted)"]
@@ -127,7 +127,6 @@ flowchart TB
 
         subgraph SecretAuthority["Hub-only secret authority"]
             CertMgr["cert-manager<br/>(ClusterIssuer: internal-ca)"]
-            Vault["Vault / ESO<br/>(IDP secrets, pull secrets)"]
         end
     end
 
@@ -152,7 +151,6 @@ flowchart TB
     Hive -->|cloud API| Spoke
 
     PostProvisionPipeline -->|requests cert on hub| CertMgr
-    PostProvisionPipeline -->|reads IDP secret on hub| Vault
     PostProvisionPipeline -->|derives + pushes<br/>leaf cert + key ONLY| SpokeLeaf
     PostProvisionPipeline -->|applies tier manifests<br/>via spoke kubeconfig| SpokeBaseline
     PostProvisionPipeline -->|configures IDP| SpokeIDP
@@ -179,7 +177,7 @@ flowchart TB
     class HubApp,AppSet argocd
     class Hive,Placement acm
     class EL,ProvisionPipeline,PostProvisionPipeline,DeprovisionPipeline tekton
-    class CertMgr,Vault authority
+    class CertMgr authority
     class SpokeLeaf,SpokeBaseline,SpokeIDP,SpokeWorkloads spoke
 ```
 
@@ -190,6 +188,7 @@ Spokes are third-party accessible. PII and proprietary material must stay on the
 - **Hub holds** the CA/signing authority, IDP client secrets, pull secrets of record, PII-laden config.
 - **Spoke holds** only derived artifacts: the leaf TLS cert and its private key, the OIDC config referencing a pre-issued client secret, tier-specific operators.
 - **No hub Secret data or PII** is ever committed to git or written to the spoke directly as-is.
+- **Crossplane** is pre-installed on the hub as a prerequisite (not managed by this repo). It handles per-cluster IAM user generation.
 
 This is why a Tekton task owns the derive-and-push step. ArgoCD cannot express "read hub Secret, extract subset, push to spoke" with a trust boundary in the middle — not without external controllers bolted on. A Tekton task executing with a hub ServiceAccount can.
 
@@ -274,65 +273,84 @@ sequenceDiagram
     Note over Dev,AWS: No PostSync Jobs, no sleep loops, no finalizer Jobs.<br/>Pipeline is idempotent: re-running skips completed tasks.
 ```
 
-### 3.2 Post-provisioning pipeline (with tier branching)
+### 3.2 Post-provisioning pipeline
 
-Replaces: the entire "configure the cluster after it exists" step that app-of-apps cannot cleanly express.
+Replaces: out-of-band `oc create secret` for IDP, manual SSL setup, no RBAC automation.
 
-Two things this diagram makes explicit that the current design cannot:
+The post-provision pipeline is a **linear Tekton pipeline** that runs after the provision pipeline completes and before the cluster is labeled `bootstrapped=true`. It handles three concerns that require imperative, ordered execution across the hub–spoke trust boundary:
 
-1. **Tier branching.** `virt` gets OpenShift Virtualization + `HyperConverged`; `ai` gets NVIDIA GPU Operator + OpenShift AI; `base` gets the common set. Each branch has its own verification task.
-2. **The secret-handoff boundary.** `request-leaf-cert` runs on hub. `derive-spoke-bundle` extracts *only* `tls.crt` + `tls.key`, explicitly excluding `ca.crt`. `push-leaf-to-spoke` uses the spoke kubeconfig to create the minimum Secret. The boundary is a pipeline task, not a doc.
+1. **SSL certificate** — request via cert-manager on hub, derive leaf-only material, push to spoke
+2. **Keycloak + OAuth** — register OIDC client on hub Keycloak (Python CLI, idempotent), configure spoke OAuth with two providers (htpasswd + openid)
+3. **RBAC** — create a local `cluster-admins` group on spoke, bind to `cluster-admin`
+
+Tier-specific workload delivery (CNV, GPU operators) is a separate decision — see section 7.
+
+**Per-cluster user list:** Each cluster definition (`clusters/<name>/`) specifies the htpasswd users for that cluster. These users are added to both the htpasswd identity provider and the `cluster-admins` group. This is the convention for per-cluster access control.
+
+**Keycloak client registration:** An existing idempotent Python script registers a new OIDC client in the hub Keycloak instance. Per CLAUDE.md constraints, this script is packaged as a `pyproject.toml` entry point and invoked by a thin bash stub in the Tekton Task YAML. The task produces a client ID and secret, stored in a hub-side Secret for the OAuth configuration task to consume.
 
 ```mermaid
-%% Post-provisioning pipeline with tier branching (virt / ai / base)
-flowchart TD
-    Start(["Trigger from provision pipeline<br/>params: cluster-name, tier, spoke-fqdn"]) --> ExtractKC["Task: extract-spoke-kubeconfig<br/>(into workspace, not git)"]
+%% Post-provisioning pipeline: SSL cert, Keycloak client, OAuth (htpasswd + openid), RBAC
+sequenceDiagram
+    autonumber
+    participant Prov as Provision Pipeline
+    participant Pipe as Post-Provision PipelineRun
+    participant K8s as Hub K8s API
+    participant CertMgr as cert-manager (hub)
+    participant KC as Keycloak (hub)
+    participant Spoke as Spoke K8s API
+    participant ACM as ACM / Placement
 
-    ExtractKC --> ReqCert["Task: request-leaf-cert<br/>(cert-manager on HUB)<br/>Certificate CR, ClusterIssuer: internal-ca"]
+    Note over Prov,ACM: Triggered by provision pipeline's final task
 
-    ReqCert --> WaitCert["Task: wait-cert-ready<br/>oc wait Certificate --timeout=10m"]
+    Prov->>Pipe: Create PipelineRun: post-provision<br/>params: cluster-name, tier
 
-    WaitCert --> DeriveBundle["Task: derive-spoke-bundle<br/>read hub Secret → extract<br/>tls.crt + tls.key ONLY<br/>(NO ca.crt, NO signing material)"]
+    rect rgb(255, 248, 220)
+        Note over Pipe,Spoke: Task 1: SSL certificate<br/>(request on hub, derive leaf-only, push to spoke)
+        Pipe->>K8s: Apply Certificate CR<br/>(ClusterIssuer, wildcard DNS)
+        CertMgr->>K8s: Sign cert, populate Secret<br/>(CA stays on hub)
+        Pipe->>K8s: oc wait --for=condition=Ready<br/>certificate/NAME --timeout=10m
+        K8s-->>Pipe: Certificate ready
+        Pipe->>K8s: Extract tls.crt + tls.key ONLY<br/>(no ca.crt, no signing material)
+        Pipe->>Spoke: Create Secret in openshift-ingress
+        Pipe->>Spoke: Patch IngressController default<br/>spec.defaultCertificate.name
+    end
 
-    DeriveBundle --> PushTLS["Task: push-leaf-to-spoke<br/>(uses spoke kubeconfig from workspace)<br/>create Secret in openshift-ingress"]
+    rect rgb(255, 248, 220)
+        Note over Pipe,KC: Task 2: Keycloak client registration<br/>(hub-only, Python CLI entry point)
+        Pipe->>KC: fleet-register-keycloak-client<br/>(idempotent, reads cluster-name)
+        KC-->>K8s: Store client-id + client-secret<br/>in hub Secret
+    end
 
-    PushTLS --> ApplyBase["Task: apply-baseline<br/>(common to all tiers)<br/>- RBAC<br/>- NetworkPolicies<br/>- monitoring config"]
+    rect rgb(255, 240, 240)
+        Note over Pipe,Spoke: Task 3: OAuth configuration<br/>(two identity providers on spoke)
+        Pipe->>K8s: Read htpasswd user list<br/>from cluster definition
+        Pipe->>K8s: Read OIDC client-id + secret<br/>from Keycloak registration
+        Pipe->>Spoke: Create htpasswd Secret<br/>in openshift-config
+        Pipe->>Spoke: Create OIDC client Secret<br/>in openshift-config
+        Pipe->>Spoke: Apply OAuth CR with two providers:<br/>htpasswd (per-cluster users)<br/>openid (hub Keycloak)
+    end
 
-    ApplyBase --> TierBranch{"when<br/>tier=?"}
+    rect rgb(255, 240, 240)
+        Note over Pipe,Spoke: Task 4: RBAC setup<br/>(local group + ClusterRoleBinding)
+        Pipe->>Spoke: Create Group: cluster-admins
+        Pipe->>Spoke: Add per-cluster users to group
+        Pipe->>Spoke: Create ClusterRoleBinding:<br/>cluster-admins → cluster-admin
+    end
 
-    TierBranch -->|"virt"| VirtPath["Task: apply-virt-stack<br/>- OpenShift Virtualization operator<br/>- HyperConverged CR<br/>- PerformanceProfile<br/>- SR-IOV if needed"]
+    rect rgb(230, 247, 237)
+        Note over Pipe,Spoke: Task 5: Apply baseline config<br/>(common to all tiers)
+        Pipe->>Spoke: kustomize build workloads/base<br/>(NetworkPolicies, monitoring)
+    end
 
-    TierBranch -->|"ai"| AIPath["Task: apply-ai-stack<br/>- Node Feature Discovery<br/>- NVIDIA GPU Operator<br/>- OpenShift AI operator<br/>- DataScienceCluster CR"]
+    rect rgb(230, 247, 237)
+        Note over Pipe,ACM: Task 6: Mark bootstrapped
+        Pipe->>K8s: oc label managedcluster/NAME<br/>bootstrapped=true
+        ACM-->>ACM: Placement re-evaluates
+        Note over ACM: ApplicationSet picks up cluster<br/>→ day-2 workloads begin
+    end
 
-    TierBranch -->|"base"| BasePath["Task: apply-base-stack<br/>- common operators only"]
-
-    VirtPath --> WaitVirt["Task: verify-virt<br/>wait HCO=Available,<br/>virtctl smoke test"]
-    AIPath --> WaitAI["Task: verify-ai<br/>wait DSC=Ready,<br/>GPU pod schedulable"]
-    BasePath --> WaitBase["Task: verify-base<br/>wait operators=Healthy"]
-
-    WaitVirt --> FetchIDP["Task: fetch-idp-secret<br/>(from hub Vault, hub SA only)"]
-    WaitAI --> FetchIDP
-    WaitBase --> FetchIDP
-
-    FetchIDP --> ApplyIDP["Task: apply-idp-to-spoke<br/>- OAuth CR with OIDC<br/>- client secret projected<br/>via Secret (NOT via Policy hub-template<br/>because this is one-shot)"]
-
-    ApplyIDP --> VerifyLogin["Task: verify-idp<br/>curl /oauth/token endpoint,<br/>confirm OIDC discovery works"]
-
-    VerifyLogin --> LabelReady["Task: mark-bootstrapped<br/>oc label managedcluster/NAME<br/>bootstrapped=true"]
-
-    LabelReady --> AppSetPickup(["ACM Placement sees label<br/>→ ArgoCD ApplicationSet picks up cluster<br/>→ day-2 workloads deployed"])
-
-    classDef hubTask fill:#fff8d8,stroke:#b0902a,color:#000
-    classDef spokeTask fill:#fff4e8,stroke:#b05d2a,color:#000
-    classDef tierTask fill:#e6f7ed,stroke:#2a8050,color:#000
-    classDef decision fill:#ede8ff,stroke:#5d2ab0,color:#000
-    classDef terminal fill:#f0f0f0,stroke:#333,color:#000
-
-    class ReqCert,WaitCert,DeriveBundle,FetchIDP hubTask
-    class ExtractKC,PushTLS,ApplyBase,ApplyIDP,VerifyLogin,LabelReady spokeTask
-    class VirtPath,AIPath,BasePath,WaitVirt,WaitAI,WaitBase tierTask
-    class TierBranch decision
-    class Start,AppSetPickup terminal
+    Note over Prov,ACM: All tasks sequential. Pipeline is idempotent.<br/>No out-of-band manual steps. No sync-wave ordering.
 ```
 
 ### 3.3 Deprovisioning pipeline
@@ -433,14 +451,13 @@ sequenceDiagram
 - The custom `openshiftpartnerlabs.com/deprovision` finalizer. Unnecessary once the pipeline controls delete order.
 - `bootstrap/deprovision-cleanup-cronjob.yaml`. The CronJob is replaced by the deprovision pipeline's explicit wait tasks.
 - The implicit `CLUSTER_NAME="$NAMESPACE"` coupling. Pipelines pass `cluster-name` as a parameter, making the coupling explicit.
-- Manual `oc create secret` as a prerequisite step. Secrets come from hub Vault / ESO, referenced by the pipeline.
+- Manual `oc create secret` as a prerequisite step. Secrets are managed as hub-side Kubernetes Secrets, referenced by the pipeline.
 
 ### 4.3 Add
 
 - **OpenShift Pipelines (Tekton)** on the hub.
 - **A `tekton/` directory** in this repo containing `Pipeline`, `Task`, `TriggerBinding`, `TriggerTemplate`, and `EventListener` definitions for provision, post-provision, and deprovision flows.
 - **`cert-manager`** on the hub with a `ClusterIssuer` pointing at internal PKI.
-- **Vault (or External Secrets Operator)** on the hub as the canonical store for pull secrets, AWS credentials, and IDP client secrets. Pipelines pull from this, not from hand-created Secrets.
 - **A git webhook** on this repo pointing at the Tekton `EventListener`. Pipeline selection is by changed path (`clusters/**` vs `workloads/**` vs deletion events).
 - **Tier labels** on `ManagedCluster` (`tier=virt|ai|base`) read by the post-provision pipeline and by `ApplicationSet` placement.
 
@@ -464,7 +481,7 @@ The surgical change is: **stop asking ArgoCD to do workflow orchestration**. Let
 
 Recommended sequence (each step delivers value and is reversible if needed):
 
-1. **Install Tekton + cert-manager + Vault on hub** via a new ArgoCD `Application`. Hub-config delivery path is unchanged.
+1. **Install Tekton + cert-manager on hub** via a new ArgoCD `Application`. Crossplane is a pre-installed prerequisite (not managed by this repo). Hub-config delivery path is unchanged.
 2. **Build the provision pipeline** for the `base` tier only. Prove it on one test spoke end-to-end. Do not migrate real clusters yet.
 3. **Add the deprovision pipeline**. Migrate one test cluster through its full lifecycle (provision → deprovision) via Tekton. Validate that deprovision finishes cleanly without the CronJob.
 4. **Add tier branching** (`virt`, then `ai`) to the post-provision pipeline.
@@ -479,6 +496,7 @@ Recommended sequence (each step delivers value and is reversible if needed):
 - **Ansible vs Tekton for post-provision imperative steps.** Tekton wins for our case (custom logic, external API integration), but if a step is naturally Ansible (e.g., registering with ServiceNow), a Tekton task can invoke an Ansible Runner. We'll decide per step.
 - **Spoke drift after bootstrap.** `ApplicationSet` catches workload drift. ACM `Policy` may be worth adding for baseline config enforcement on spokes (NetworkPolicies, baseline RBAC). TBD.
 - **Cert rotation.** cert-manager handles renewal on hub automatically. A companion "rotate-spoke-cert" pipeline triggered by renewal events will re-run the push-to-spoke task only. Not in the initial scope.
+- **Tier-specific workload delivery model.** Post-provision imperative steps (SSL, OAuth, RBAC) are Tekton tasks. For tier-specific operator installation (CNV, GPU Operator, OpenShift AI), two models remain under consideration: (a) Tekton tasks in the post-provision pipeline with tier branching, or (b) layered ArgoCD ApplicationSets with tier-specific Placement label selectors. Decision deferred until base-tier post-provision is proven end-to-end.
 - **Human approval gates.** Prod deprovision should require a human click. Tekton supports this via manual-approval tasks; wiring TBD.
 
 ---
