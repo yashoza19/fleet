@@ -13,6 +13,7 @@ spec:
   steps:
     - name: verify
       image: $(params.pipeline-image)
+      imagePullPolicy: Always
       script: |
         #!/usr/bin/env bash
         set -euo pipefail

@@ -15,6 +15,7 @@ spec:
   steps:
     - name: wait
       image: $(params.pipeline-image)
+      imagePullPolicy: Always
       script: |
         #!/usr/bin/env bash
         set -euo pipefail
