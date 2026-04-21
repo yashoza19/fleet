@@ -13,7 +13,7 @@ spec:
   steps:
     - name: cleanup
       image: $(params.pipeline-image)
-      imagePullPolicy: Always
+      imagePullPolicy: IfNotPresent
       script: |
         #!/usr/bin/env bash
         set -euo pipefail

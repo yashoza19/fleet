@@ -12,7 +12,7 @@ spec:
   steps:
     - name: validate
       image: $(params.pipeline-image)
-      imagePullPolicy: Always
+      imagePullPolicy: IfNotPresent
       script: |
         #!/usr/bin/env bash
         set -euo pipefail
