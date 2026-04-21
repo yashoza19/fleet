@@ -17,11 +17,10 @@ def main() -> None:
 
     cluster = args.cluster_name
     source = args.source_dir
-    cluster_dir = f"{source}/clusters/{cluster}"
 
     print(f"Applying cluster CRs for {cluster}...")
     build = subprocess.run(
-        ["kustomize", "build", cluster_dir],
+        ["kustomize", "build", source],
         capture_output=True,
         text=True,
     )
