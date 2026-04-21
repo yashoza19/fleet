@@ -1,0 +1,9 @@
+apiVersion: triggers.tekton.dev/v1beta1
+kind: TriggerBinding
+metadata:
+  name: deprovision-binding
+  namespace: openshift-pipelines
+spec:
+  params:
+    - name: cluster-name
+      value: $(extensions.cluster_name)

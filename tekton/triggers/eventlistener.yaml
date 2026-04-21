@@ -1,0 +1,62 @@
+apiVersion: triggers.tekton.dev/v1beta1
+kind: EventListener
+metadata:
+  name: fleet-cluster-lifecycle
+  namespace: openshift-pipelines
+spec:
+  serviceAccountName: fleet-pipeline
+  triggers:
+    - name: provision
+      interceptors:
+        - ref:
+            name: github
+          params:
+            - name: eventTypes
+              value: ["push"]
+        - ref:
+            name: cel
+          params:
+            - name: filter
+              value: >-
+                body.ref == 'refs/heads/main' &&
+                body.commits.exists(c, c.added.exists(f, f.startsWith('clusters/')))
+            - name: overlays
+              value:
+                - key: cluster_name
+                  expression: >-
+                    body.commits.map(c, c.added.filter(f, f.startsWith('clusters/')))
+                    .flatten()
+                    .map(f, f.split('/')[1])
+                    .filter(n, n != '')
+                    [0]
+      bindings:
+        - ref: provision-binding
+      template:
+        ref: provision-template
+    - name: deprovision
+      interceptors:
+        - ref:
+            name: github
+          params:
+            - name: eventTypes
+              value: ["push"]
+        - ref:
+            name: cel
+          params:
+            - name: filter
+              value: >-
+                body.ref == 'refs/heads/main' &&
+                body.commits.exists(c, c.removed.exists(f, f.startsWith('clusters/')))
+            - name: overlays
+              value:
+                - key: cluster_name
+                  expression: >-
+                    body.commits.map(c, c.removed.filter(f, f.startsWith('clusters/')))
+                    .flatten()
+                    .map(f, f.split('/')[1])
+                    .filter(n, n != '')
+                    [0]
+      bindings:
+        - ref: deprovision-binding
+      template:
+        ref: deprovision-template
