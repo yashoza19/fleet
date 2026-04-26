@@ -44,12 +44,14 @@ The guiding rule: *ArgoCD reconciles declarative state. Tekton runs ordered work
 | Repo structure | ✅ Done |
 | Hub bootstrap (Tekton, cert-manager, Crossplane) | ✅ Done (manifests ready, not yet applied) |
 | Development tooling (yamllint, tox, pytest) | ✅ Done |
-| CI (GitHub Actions) | ✅ Done |
+| CI (GitHub Actions: gitleaks, tox, tekton-lint, kustomize) | ✅ Done |
+| Container image build (multi-arch, quay.io/rhopl) | ✅ Done |
 | Cluster templates (AWS HA base tier) | ✅ Done |
-| Provision pipeline (9 tasks, triggers) | ✅ Done |
-| Post-provision pipeline (base tier) | ⏳ Planned |
+| Provision pipeline (13 tasks, triggers) | ✅ Done |
+| Post-provision pipeline (base tier, 10 tasks, triggers) | ✅ Done |
 | Post-provision pipeline (virt, ai tiers) | ⏳ Planned |
-| Deprovision pipeline | ⏳ Planned |
+| Deprovision pipeline (4 tasks, triggers) | ✅ Done |
+| Tekton triggers (provision, post-provision, deprovision) | ✅ Done |
 | ApplicationSet day-2 delivery | ⏳ Planned |
 | Migration from `labargocd` | ⏳ Planned |
 
