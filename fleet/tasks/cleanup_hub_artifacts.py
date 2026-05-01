@@ -74,10 +74,10 @@ def main() -> None:
     info(f"  -> Secret {cluster}-cert-manager-aws deleted")
 
     iam_resources = [
-        "user.iam",
-        "policy.iam",
         "userpolicyattachment.iam",
+        "policy.iam",
         "accesskey.iam",
+        "user.iam",
     ]
     for resource in iam_resources:
         info(f"Deleting {resource} resources...")
