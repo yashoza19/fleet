@@ -196,11 +196,52 @@ spec:
         - name: source
           workspace: shared-workspace
 
+    - name: apply-tier-workloads
+      taskRef:
+        name: apply-tier-workloads
+      runAfter:
+        - apply-base-workloads
+      params:
+        - name: cluster-name
+          value: $(params.cluster-name)
+        - name: pipeline-image
+          value: $(params.pipeline-image)
+        - name: tier
+          value: $(params.tier)
+      workspaces:
+        - name: source
+          workspace: shared-workspace
+      when:
+        - input: "$(params.tier)"
+          operator: notin
+          values: ["base"]
+
+    - name: verify-tier-workloads
+      taskRef:
+        name: verify-tier-workloads
+      runAfter:
+        - apply-tier-workloads
+      params:
+        - name: cluster-name
+          value: $(params.cluster-name)
+        - name: pipeline-image
+          value: $(params.pipeline-image)
+        - name: tier
+          value: $(params.tier)
+      workspaces:
+        - name: source
+          workspace: shared-workspace
+      when:
+        - input: "$(params.tier)"
+          operator: notin
+          values: ["base"]
+
     - name: configure-spoke-rbac
       taskRef:
         name: configure-spoke-rbac
       runAfter:
         - apply-base-workloads
+        - verify-tier-workloads
       params:
         - name: cluster-name
           value: $(params.cluster-name)

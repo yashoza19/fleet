@@ -25,6 +25,8 @@ resources:
   - wait-for-ssl-ready.yaml
   - extract-cert-material.yaml
   - apply-base-workloads.yaml
+  - apply-tier-workloads.yaml
+  - verify-tier-workloads.yaml
   - configure-spoke-rbac.yaml
   - delete-cluster-resources.yaml
   - wait-hive-uninstall.yaml
