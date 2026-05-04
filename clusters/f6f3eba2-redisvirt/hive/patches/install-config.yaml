@@ -19,10 +19,6 @@ stringData:
             size: 256
             type: gp3
           type: c5d.metal
-          zones:
-            - us-east-1a
-            - us-east-1b
-            - us-east-1c
       replicas: 1
     compute:
       - name: worker
@@ -33,10 +29,6 @@ stringData:
               size: 256
               type: gp3
             type: c5d.metal
-            zones:
-              - us-east-1a
-              - us-east-1b
-              - us-east-1c
         replicas: 0
     networking:
       clusterNetwork:

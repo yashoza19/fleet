@@ -51,6 +51,10 @@ fleet-trigger-post-provision = "fleet.tasks.trigger_post_provision:main"
 fleet-trigger-provision = "fleet.tasks.trigger_provision:main"
 fleet-apply-tier-workloads = "fleet.tasks.apply_tier_workloads:main"
 fleet-verify-tier-workloads = "fleet.tasks.verify_tier_workloads:main"
+fleet-create-test-vcluster = "fleet.tasks.create_test_vcluster:main"
+fleet-seed-test-vcluster = "fleet.tasks.seed_test_vcluster:main"
+fleet-delete-test-vcluster = "fleet.tasks.delete_test_vcluster:main"
+fleet-run-post-provision = "fleet.tasks.run_post_provision:main"
 
 [tool.pylint.messages_control]
 disable = [
