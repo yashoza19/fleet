@@ -108,7 +108,7 @@ def main() -> None:
                 "pipelinerun",
                 pr_name,
                 "-o",
-                "jsonpath={.status.conditions[0]}",
+                'jsonpath={.status.conditions[?(@.type=="Succeeded")]}',
             ],
             capture_output=True,
             text=True,
@@ -119,7 +119,7 @@ def main() -> None:
             reason = condition.get("reason", "")
             info(f"  -> status={status} reason={reason}")
 
-            if status == "True" and reason == "Succeeded":
+            if status == "True":
                 info("Post-provision PipelineRun succeeded")
                 return
 

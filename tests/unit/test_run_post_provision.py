@@ -32,7 +32,7 @@ def _create_fail():
 
 
 def _status_result(status, reason):
-    cond = json.dumps({"status": status, "reason": reason})
+    cond = json.dumps({"type": "Succeeded", "status": status, "reason": reason})
     return subprocess.CompletedProcess([], returncode=0, stdout=cond, stderr="")
 
 
@@ -52,6 +52,15 @@ def _status_failed():
 @mock.patch("fleet.tasks.run_post_provision.subprocess.run")
 def test_run_success(mock_run, _mock_sleep):
     mock_run.side_effect = [_create_result(), _status_succeeded()]
+    with mock.patch("sys.argv", BASE_ARGV):
+        main()
+    assert mock_run.call_count == 2
+
+
+@mock.patch("fleet.tasks.run_post_provision.time.sleep")
+@mock.patch("fleet.tasks.run_post_provision.subprocess.run")
+def test_run_succeeds_with_completed_reason(mock_run, _mock_sleep):
+    mock_run.side_effect = [_create_result(), _status_result("True", "Completed")]
     with mock.patch("sys.argv", BASE_ARGV):
         main()
     assert mock_run.call_count == 2
