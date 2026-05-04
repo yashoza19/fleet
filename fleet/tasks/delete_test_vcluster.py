@@ -3,6 +3,7 @@
 import argparse
 import subprocess
 import sys
+import time
 
 from fleet.tasks._log import configure, error, info
 
@@ -29,6 +30,30 @@ def main() -> None:
     )
     info(f"  -> managedcluster delete exit code: {result.returncode}")
 
+    info("Waiting for ManagedCluster to be fully removed...")
+    for _ in range(60):
+        result = subprocess.run(
+            ["oc", "get", "managedcluster", cluster],
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode != 0:
+            info("  -> ManagedCluster gone")
+            break
+        time.sleep(5)
+    else:
+        info("  -> ManagedCluster still present after 300s, proceeding anyway")
+
+    result = subprocess.run(
+        ["oc", "get", "namespace", args.namespace],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        info(f"Namespace '{args.namespace}' already removed, skipping vcluster delete")
+        info("Delete complete")
+        return
+
     info(f"Deleting vCluster '{cluster}'...")
     result = subprocess.run(
         [
@@ -43,7 +68,15 @@ def main() -> None:
     )
     info(f"  -> vcluster delete exit code: {result.returncode}")
     if result.returncode != 0:
-        error(f"Failed to delete vCluster: {result.stderr}")
-        sys.exit(1)
+        info(f"vcluster delete failed ({result.stderr.strip()}), falling back to namespace delete")
+        result = subprocess.run(
+            ["oc", "delete", "namespace", args.namespace, "--ignore-not-found=true"],
+            capture_output=True,
+            text=True,
+        )
+        info(f"  -> namespace delete exit code: {result.returncode}")
+        if result.returncode != 0:
+            error(f"Failed to delete namespace: {result.stderr}")
+            sys.exit(1)
 
     info("Delete complete")
