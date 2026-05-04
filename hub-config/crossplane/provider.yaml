@@ -3,14 +3,16 @@ kind: Provider
 metadata:
   name: provider-aws-iam
 spec:
-  package: xpkg.upbound.io/upbound/provider-aws-iam:v1.20.0
-  controllerConfigRef:
-    name: provider-aws-iam
+  package: xpkg.upbound.io/upbound/provider-aws-iam:v1.7.0
 ---
-apiVersion: pkg.crossplane.io/v1alpha1
-kind: ControllerConfig
+apiVersion: aws.upbound.io/v1beta1
+kind: ProviderConfig
 metadata:
-  name: provider-aws-iam
+  name: default
 spec:
-  securityContext:
-    runAsNonRoot: true
+  credentials:
+    source: Secret
+    secretRef:
+      namespace: crossplane-system
+      name: aws-credentials
+      key: creds

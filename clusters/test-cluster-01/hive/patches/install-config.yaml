@@ -7,19 +7,15 @@ type: Opaque
 stringData:
   install-config.yaml: |
     apiVersion: v1
-    baseDomain: openshiftpartnerlabs.com
+    baseDomain: opdev.io
     metadata:
       name: test-cluster-01
     controlPlane:
       name: master
       platform:
         aws:
-          type: m8i.2xlarge
-          zones:
-            - us-east-1a
-            - us-east-1b
-            - us-east-1c
-      replicas: 3
+          type: m7i.2xlarge
+      replicas: 1
     compute:
       - name: worker
         platform:
@@ -28,12 +24,8 @@ stringData:
               iops: 4000
               size: 100
               type: gp3
-            type: m8i.2xlarge
-            zones:
-              - us-east-1a
-              - us-east-1b
-              - us-east-1c
-        replicas: 3
+            type: m7i.2xlarge
+        replicas: 0
     networking:
       clusterNetwork:
         - cidr: 10.128.0.0/14

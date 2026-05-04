@@ -8,7 +8,9 @@ def discover_kustomize_dirs():
     top_level = Path("clusters").glob("*/kustomization.yaml")
     crossplane = Path("clusters").glob("*/crossplane/kustomization.yaml")
     hive = Path("clusters").glob("*/hive/kustomization.yaml")
-    return sorted([*top_level, *crossplane, *hive])
+    workloads = Path("workloads").glob("*/kustomization.yaml")
+    workloads_sub = Path("workloads").glob("*/*/kustomization.yaml")
+    return sorted([*top_level, *crossplane, *hive, *workloads, *workloads_sub])
 
 
 @pytest.mark.parametrize("kustomization", discover_kustomize_dirs(), ids=str)

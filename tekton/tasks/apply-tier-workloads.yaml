@@ -1,0 +1,30 @@
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  name: apply-tier-workloads
+spec:
+  params:
+    - name: cluster-name
+      type: string
+    - name: pipeline-image
+      type: string
+    - name: tier
+      type: string
+  workspaces:
+    - name: source
+  steps:
+    - name: apply
+      image: $(params.pipeline-image)
+      imagePullPolicy: IfNotPresent
+      script: |
+        #!/usr/bin/env bash
+        set -euo pipefail
+        fleet-apply-tier-workloads \
+          --cluster-name "$(params.cluster-name)" \
+          --tier "$(params.tier)" \
+          --source-dir "$(workspaces.source.path)/workloads/$(params.tier)" \
+          --spoke-kubeconfig "$(workspaces.source.path)/kubeconfig"
+      when:
+        - input: "$(params.tier)"
+          operator: notin
+          values: ["base"]
