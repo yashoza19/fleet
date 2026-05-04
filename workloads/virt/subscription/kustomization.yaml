@@ -4,4 +4,5 @@ kind: Kustomization
 resources:
   - namespace.yaml
   - operatorgroup.yaml
-  - subscription.yaml
+  - nfd-subscription.yaml
+  - cnv-subscription.yaml

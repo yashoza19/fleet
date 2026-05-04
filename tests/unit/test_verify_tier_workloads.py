@@ -31,20 +31,22 @@ def _fail(stdout="", stderr="error"):
 
 @mock.patch("fleet.tasks.verify_tier_workloads.subprocess.run")
 def test_verify_tier_workloads_success(mock_run):
-    """Test successful tier workload verification."""
+    """Test successful tier workload verification with NFD + CNV."""
     mock_run.side_effect = [
         # 1. Wait for HyperConverged Available
         _ok(stdout="condition met"),
-        # 2. Check KubeVirt deployment replicas
+        # 2. Check NFD deployment replicas
+        _ok(stdout='{"status":{"readyReplicas":1,"replicas":1}}'),
+        # 3. Check virt-operator deployment replicas
         _ok(stdout='{"status":{"readyReplicas":2,"replicas":2}}'),
-        # 3. Check CDI deployment replicas
+        # 4. Check CDI deployment replicas
         _ok(stdout='{"status":{"readyReplicas":2,"replicas":2}}'),
     ]
 
     with mock.patch("sys.argv", BASE_ARGV):
         main()
 
-    assert mock_run.call_count == 3
+    assert mock_run.call_count == 4
 
     # Verify HyperConverged wait command
     hc_call = mock_run.call_args_list[0]
@@ -140,20 +142,27 @@ def test_uses_correct_namespaces_for_tier(mock_run):
     # Test with virt tier
     mock_run.side_effect = [
         _ok(stdout="condition met"),
-        _ok(stdout='{"status":{"readyReplicas":2,"replicas":2}}'),
-        _ok(stdout='{"status":{"readyReplicas":2,"replicas":2}}'),
+        _ok(stdout='{"status":{"readyReplicas":1,"replicas":1}}'),  # NFD
+        _ok(stdout='{"status":{"readyReplicas":2,"replicas":2}}'),  # virt-operator
+        _ok(stdout='{"status":{"readyReplicas":2,"replicas":2}}'),  # cdi-operator
     ]
 
     with mock.patch("sys.argv", BASE_ARGV):
         main()
 
-    # Check that openshift-cnv namespace is used for virt tier
+    # Check that both openshift-nfd and openshift-cnv namespaces are used for virt tier
     all_calls = mock_run.call_args_list
+    namespaces_used = []
     for call in all_calls:
         cmd = call.args[0]
         if "-n" in cmd:
             ns_idx = cmd.index("-n") + 1
-            assert cmd[ns_idx] == "openshift-cnv"
+            namespaces_used.append(cmd[ns_idx])
+
+    # Should use openshift-cnv for HyperConverged wait
+    assert "openshift-cnv" in namespaces_used
+    # Should use openshift-nfd for NFD deployment check
+    assert "openshift-nfd" in namespaces_used
 
 
 @mock.patch("fleet.tasks.verify_tier_workloads.subprocess.run")
@@ -186,8 +195,9 @@ def test_verifies_correct_deployment_names(mock_run):
     """Test that correct deployment names are checked based on tier."""
     mock_run.side_effect = [
         _ok(stdout="condition met"),
-        _ok(stdout='{"status":{"readyReplicas":2,"replicas":2}}'),
-        _ok(stdout='{"status":{"readyReplicas":2,"replicas":2}}'),
+        _ok(stdout='{"status":{"readyReplicas":1,"replicas":1}}'),  # NFD
+        _ok(stdout='{"status":{"readyReplicas":2,"replicas":2}}'),  # virt-operator
+        _ok(stdout='{"status":{"readyReplicas":2,"replicas":2}}'),  # cdi-operator
     ]
 
     with mock.patch("sys.argv", BASE_ARGV):
@@ -196,9 +206,9 @@ def test_verifies_correct_deployment_names(mock_run):
     # Check deployment names for virt tier
     deploy_calls = [call for call in mock_run.call_args_list
                    if any("deployment/" in arg for arg in call.args[0])]
-    assert len(deploy_calls) == 2
+    assert len(deploy_calls) == 3
 
-    # Should check virt-operator and cdi-operator deployments
+    # Should check nfd-controller-manager, virt-operator and cdi-operator deployments
     deploy_names = []
     for call in deploy_calls:
         cmd = call.args[0]
@@ -206,6 +216,7 @@ def test_verifies_correct_deployment_names(mock_run):
             if arg.startswith("deployment/"):
                 deploy_names.append(arg.split("/")[1])
 
+    assert "nfd-controller-manager" in deploy_names
     assert "virt-operator" in deploy_names
     assert "cdi-operator" in deploy_names
 
@@ -249,8 +260,9 @@ def test_uses_cluster_name_in_logging(mock_run):
     """Test that cluster name is used in logging and commands."""
     mock_run.side_effect = [
         _ok(stdout="condition met"),
-        _ok(stdout='{"status":{"readyReplicas":2,"replicas":2}}'),
-        _ok(stdout='{"status":{"readyReplicas":2,"replicas":2}}'),
+        _ok(stdout='{"status":{"readyReplicas":1,"replicas":1}}'),  # NFD
+        _ok(stdout='{"status":{"readyReplicas":2,"replicas":2}}'),  # virt-operator
+        _ok(stdout='{"status":{"readyReplicas":2,"replicas":2}}'),  # cdi-operator
     ]
 
     # Test with custom cluster name
@@ -261,7 +273,7 @@ def test_uses_cluster_name_in_logging(mock_run):
         main()
 
     # Should complete successfully with custom cluster name
-    assert mock_run.call_count == 3
+    assert mock_run.call_count == 4
 
 
 @mock.patch("fleet.tasks.verify_tier_workloads.subprocess.run")
@@ -269,8 +281,9 @@ def test_verifies_hyperconverged_resource_name(mock_run):
     """Test that correct HyperConverged resource name is used."""
     mock_run.side_effect = [
         _ok(stdout="condition met"),
-        _ok(stdout='{"status":{"readyReplicas":2,"replicas":2}}'),
-        _ok(stdout='{"status":{"readyReplicas":2,"replicas":2}}'),
+        _ok(stdout='{"status":{"readyReplicas":1,"replicas":1}}'),  # NFD
+        _ok(stdout='{"status":{"readyReplicas":2,"replicas":2}}'),  # virt-operator
+        _ok(stdout='{"status":{"readyReplicas":2,"replicas":2}}'),  # cdi-operator
     ]
 
     with mock.patch("sys.argv", BASE_ARGV):
@@ -290,9 +303,11 @@ def test_zero_replicas_deployment(mock_run):
     mock_run.side_effect = [
         # HyperConverged ready
         _ok(stdout="condition met"),
-        # First deployment with zero replicas (both ready and total)
+        # NFD deployment with zero replicas (both ready and total)
         _ok(stdout='{"status":{"readyReplicas":0,"replicas":0}}'),
-        # Second deployment with zero replicas (both ready and total)
+        # virt-operator deployment with zero replicas
+        _ok(stdout='{"status":{"readyReplicas":0,"replicas":0}}'),
+        # cdi-operator deployment with zero replicas
         _ok(stdout='{"status":{"readyReplicas":0,"replicas":0}}'),
     ]
 
@@ -300,4 +315,4 @@ def test_zero_replicas_deployment(mock_run):
         # Zero replicas should be considered ready (scaled down scenario)
         main()
 
-    assert mock_run.call_count == 3  # Should complete both deployment checks
+    assert mock_run.call_count == 4  # Should complete all deployment checks

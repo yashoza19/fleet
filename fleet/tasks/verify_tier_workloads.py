@@ -29,15 +29,21 @@ def main() -> None:
     info(f"  tier={tier}")
     info(f"  spoke-kubeconfig={args.spoke_kubeconfig}")
 
-    # Determine namespace and deployments based on tier
+    # Determine resources to check based on tier
     if tier == "virt":
-        namespace = "openshift-cnv"
+        hc_namespace = "openshift-cnv"
         hc_resource = "hyperconverged/kubevirt-hyperconverged"
-        deployments = ["virt-operator", "cdi-operator"]
+        # Check deployments in both NFD and CNV namespaces
+        deployment_checks = [
+            {"namespace": "openshift-nfd", "deployments": ["nfd-controller-manager"]},
+            {"namespace": "openshift-cnv", "deployments": ["virt-operator", "cdi-operator"]},
+        ]
     elif tier == "ai":
-        namespace = "openshift-ai"
+        hc_namespace = "openshift-ai"
         hc_resource = "aicluster/ai-cluster"  # Hypothetical for AI tier
-        deployments = ["ai-operator", "gpu-operator"]
+        deployment_checks = [
+            {"namespace": "openshift-ai", "deployments": ["ai-operator", "gpu-operator"]},
+        ]
     else:
         error(f"Unsupported tier: {tier}")
         sys.exit(1)
@@ -50,7 +56,7 @@ def main() -> None:
             "oc", "wait",
             "--for=condition=Available",
             hc_resource,
-            "-n", namespace,
+            "-n", hc_namespace,
             f"--kubeconfig={args.spoke_kubeconfig}",
             "--timeout=15m"
         ],
@@ -63,50 +69,58 @@ def main() -> None:
         sys.exit(1)
     info(f"  -> {hc_resource} is Available")
 
-    # Phase 2: Verify operator deployments are ready
-    info(f"Phase 2: Verifying operator deployments in {namespace}...")
+    # Phase 2: Verify operator deployments are ready across all namespaces
+    info(f"Phase 2: Verifying operator deployments...")
 
-    for deployment in deployments:
-        info(f"  Checking deployment {deployment}...")
+    all_deployments = []
+    for check in deployment_checks:
+        namespace = check["namespace"]
+        deployments = check["deployments"]
 
-        status_result = subprocess.run(
-            [
-                "oc", "get",
-                f"deployment/{deployment}",
-                "-n", namespace,
-                f"--kubeconfig={args.spoke_kubeconfig}",
-                "-o", "json"
-            ],
-            capture_output=True,
-            text=True,
-        )
-        info(f"    -> oc get exit code: {status_result.returncode}")
-        if status_result.returncode != 0:
-            error(f"Failed to get deployment {deployment}: {status_result.stderr}")
-            sys.exit(1)
+        info(f"  Checking deployments in {namespace}...")
 
-        try:
-            deploy_data = json.loads(status_result.stdout)
-            status = deploy_data.get("status", {})
-            ready_replicas = status.get("readyReplicas", 0)
-            total_replicas = status.get("replicas", 0)
+        for deployment in deployments:
+            info(f"    Checking deployment {deployment}...")
 
-            info(f"    -> Replicas: {ready_replicas}/{total_replicas}")
-
-            if ready_replicas != total_replicas:
-                error(f"Deployment {deployment} not ready: {ready_replicas}/{total_replicas} replicas ready")
+            status_result = subprocess.run(
+                [
+                    "oc", "get",
+                    f"deployment/{deployment}",
+                    "-n", namespace,
+                    f"--kubeconfig={args.spoke_kubeconfig}",
+                    "-o", "json"
+                ],
+                capture_output=True,
+                text=True,
+            )
+            info(f"      -> oc get exit code: {status_result.returncode}")
+            if status_result.returncode != 0:
+                error(f"Failed to get deployment {deployment}: {status_result.stderr}")
                 sys.exit(1)
 
-            info(f"    -> Deployment {deployment} is ready")
+            try:
+                deploy_data = json.loads(status_result.stdout)
+                status = deploy_data.get("status", {})
+                ready_replicas = status.get("readyReplicas", 0)
+                total_replicas = status.get("replicas", 0)
 
-        except (json.JSONDecodeError, KeyError) as e:
-            error(f"Failed to parse deployment status for {deployment}: {e}")
-            sys.exit(1)
+                info(f"      -> Replicas: {ready_replicas}/{total_replicas}")
+
+                if ready_replicas != total_replicas:
+                    error(f"Deployment {deployment} not ready: {ready_replicas}/{total_replicas} replicas ready")
+                    sys.exit(1)
+
+                info(f"      -> Deployment {deployment} is ready")
+                all_deployments.append(f"{namespace}/{deployment}")
+
+            except (json.JSONDecodeError, KeyError) as e:
+                error(f"Failed to parse deployment status for {deployment}: {e}")
+                sys.exit(1)
 
     # Phase 3: Log verification summary
     info("Phase 3: Verification summary")
     info(f"  ✓ {hc_resource} is Available")
-    for deployment in deployments:
+    for deployment in all_deployments:
         info(f"  ✓ {deployment} deployment is ready")
 
     info(f"Tier {tier} workloads verified successfully")

@@ -33,24 +33,26 @@ def _fail(stdout="", stderr="error"):
 
 @mock.patch("fleet.tasks.apply_tier_workloads.subprocess.run")
 def test_apply_tier_workloads_success(mock_run):
-    """Test successful tier workload application with CSV wait."""
+    """Test successful tier workload application with NFD + CNV CSV wait."""
     mock_run.side_effect = [
         # 1. Build subscription manifests
         _ok(stdout="apiVersion: v1\nkind: List\nitems: []"),
         # 2. Apply subscription manifests
         _ok(stdout="namespace/openshift-cnv created"),
-        # 3. Wait for CSV ready (success on first try)
+        # 3. Wait for NFD CSV ready (success on first try)
         _ok(stdout="condition met"),
-        # 4. Build activation manifests
+        # 4. Wait for CNV CSV ready (success on first try)
+        _ok(stdout="condition met"),
+        # 5. Build activation manifests
         _ok(stdout="apiVersion: hco.kubevirt.io/v1beta1\nkind: HyperConverged"),
-        # 5. Apply activation manifests
+        # 6. Apply activation manifests
         _ok(stdout="hyperconverged/kubevirt-hyperconverged created"),
     ]
 
     with mock.patch("sys.argv", BASE_ARGV):
         main()
 
-    assert mock_run.call_count == 5
+    assert mock_run.call_count == 6
 
     # Verify kustomize build calls
     kustomize_calls = [call for call in mock_run.call_args_list
@@ -100,14 +102,14 @@ def test_subscription_apply_fails(mock_run):
 @mock.patch("fleet.tasks.apply_tier_workloads.subprocess.run")
 def test_csv_wait_timeout(mock_run, mock_sleep):
     """Test timeout when waiting for CSV ready."""
-    # Need enough failures to simulate timeout (40+ attempts for 20min timeout)
-    csv_failures = [_fail(stderr="condition not met")] * 45
+    # Need enough failures to simulate timeout (80+ attempts for 20min timeout, 2 per iteration)
+    csv_failures = [_fail(stderr="condition not met")] * 90
 
     mock_run.side_effect = [
         # Build and apply subscription
         _ok(stdout="apiVersion: v1\nkind: List"),
         _ok(stdout="namespace/openshift-cnv created"),
-        # CSV wait failures (simulate timeout with enough attempts)
+        # CSV wait failures (simulate timeout with enough attempts for both NFD and CNV)
         *csv_failures
     ]
 
@@ -130,7 +132,9 @@ def test_activation_kustomize_build_fails(mock_run):
         # Subscription phase succeeds
         _ok(stdout="apiVersion: v1\nkind: List"),
         _ok(stdout="namespace/openshift-cnv created"),
-        _ok(stdout="condition met"),  # CSV ready
+        # CSV wait succeeds for both NFD and CNV
+        _ok(stdout="condition met"),  # NFD CSV ready
+        _ok(stdout="condition met"),  # CNV CSV ready
         # Activation build fails
         _fail(stderr="error building activation manifests"),
     ]
@@ -188,15 +192,20 @@ def test_uses_correct_tier_directories(mock_run):
 
 @mock.patch("fleet.tasks.apply_tier_workloads.subprocess.run")
 def test_csv_wait_succeeds_after_retry(mock_run):
-    """Test CSV wait succeeds after initial failures."""
+    """Test CSV wait succeeds after initial failures for both NFD and CNV."""
     mock_run.side_effect = [
         # Subscription phase
         _ok(stdout="apiVersion: v1\nkind: List"),
         _ok(stdout="namespace/openshift-cnv created"),
-        # CSV wait - fail twice then succeed
-        _fail(stderr="condition not met"),
-        _fail(stderr="condition not met"),
-        _ok(stdout="condition met"),  # Success on third try
+        # First check - NFD fails, CNV fails
+        _fail(stderr="condition not met"),  # NFD
+        _fail(stderr="condition not met"),  # CNV
+        # Second check - NFD succeeds, CNV fails
+        _ok(stdout="condition met"),  # NFD
+        _fail(stderr="condition not met"),  # CNV
+        # Third check - NFD succeeds, CNV succeeds
+        _ok(stdout="condition met"),  # NFD
+        _ok(stdout="condition met"),  # CNV
         # Activation phase
         _ok(stdout="apiVersion: hco.kubevirt.io/v1beta1\nkind: HyperConverged"),
         _ok(stdout="hyperconverged/kubevirt-hyperconverged created"),
@@ -206,16 +215,17 @@ def test_csv_wait_succeeds_after_retry(mock_run):
         main()
 
     # Should complete successfully
-    assert mock_run.call_count == 7
+    assert mock_run.call_count == 10
 
 
 @mock.patch("fleet.tasks.apply_tier_workloads.subprocess.run")
 def test_verifies_csv_wait_command_format(mock_run):
-    """Test that CSV wait uses correct oc wait command format."""
+    """Test that CSV wait uses correct oc wait command format for NFD and CNV."""
     mock_run.side_effect = [
         _ok(stdout="apiVersion: v1\nkind: List"),
         _ok(stdout="namespace/openshift-cnv created"),
-        _ok(stdout="condition met"),
+        _ok(stdout="condition met"),  # NFD CSV
+        _ok(stdout="condition met"),  # CNV CSV
         _ok(stdout="apiVersion: hco.kubevirt.io/v1beta1\nkind: HyperConverged"),
         _ok(stdout="hyperconverged/kubevirt-hyperconverged created"),
     ]
@@ -223,21 +233,26 @@ def test_verifies_csv_wait_command_format(mock_run):
     with mock.patch("sys.argv", BASE_ARGV):
         main()
 
-    # Find the CSV wait call
+    # Find the CSV wait calls
     csv_wait_calls = [call for call in mock_run.call_args_list
                      if "oc" in call.args[0][0] and "wait" in call.args[0]]
-    assert len(csv_wait_calls) == 1
+    assert len(csv_wait_calls) == 2  # NFD + CNV
 
-    wait_call = csv_wait_calls[0]
-    wait_cmd = wait_call.args[0]
+    # Verify both wait commands have correct format
+    for wait_call in csv_wait_calls:
+        wait_cmd = wait_call.args[0]
+        assert "oc" in wait_cmd
+        assert "wait" in wait_cmd
+        assert "--for=condition=" in " ".join(wait_cmd)
+        assert "clusterserviceversion" in " ".join(wait_cmd)
+        assert "--kubeconfig=/workspace/kubeconfig" in wait_cmd
+        assert "--timeout=" in " ".join(wait_cmd)
 
-    # Verify command format
-    assert "oc" in wait_cmd
-    assert "wait" in wait_cmd
-    assert "--for=condition=" in " ".join(wait_cmd)
-    assert "clusterserviceversion" in " ".join(wait_cmd)
-    assert "--kubeconfig=/workspace/kubeconfig" in wait_cmd
-    assert "--timeout=" in " ".join(wait_cmd)
+    # Verify namespaces are correct
+    nfd_call = csv_wait_calls[0]
+    cnv_call = csv_wait_calls[1]
+    assert "-n" in nfd_call.args[0] and "openshift-nfd" in nfd_call.args[0]
+    assert "-n" in cnv_call.args[0] and "openshift-cnv" in cnv_call.args[0]
 
 
 @mock.patch("fleet.tasks.apply_tier_workloads.subprocess.run")
@@ -246,7 +261,8 @@ def test_uses_cluster_name_in_commands(mock_run):
     mock_run.side_effect = [
         _ok(stdout="apiVersion: v1\nkind: List"),
         _ok(stdout="namespace/openshift-cnv created"),
-        _ok(stdout="condition met"),
+        _ok(stdout="condition met"),  # NFD CSV
+        _ok(stdout="condition met"),  # CNV CSV
         _ok(stdout="apiVersion: hco.kubevirt.io/v1beta1\nkind: HyperConverged"),
         _ok(stdout="hyperconverged/kubevirt-hyperconverged created"),
     ]
@@ -256,4 +272,4 @@ def test_uses_cluster_name_in_commands(mock_run):
 
     # Cluster name should appear in logging and potentially in wait commands
     # This is mainly to ensure the parameter is being used
-    assert mock_run.call_count == 5
+    assert mock_run.call_count == 6

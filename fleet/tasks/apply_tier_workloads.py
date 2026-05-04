@@ -61,43 +61,64 @@ def main() -> None:
         sys.exit(1)
     info(f"  -> Apply output: {apply.stdout.strip()}")
 
-    # Phase 2: Wait for CSV (ClusterServiceVersion) to be ready
-    info("Phase 2: Waiting for operator CSV to be ready...")
+    # Phase 2: Wait for operator CSVs to be ready
+    info("Phase 2: Waiting for operator CSVs to be ready...")
     csv_timeout = 1200  # 20 minutes in seconds
     csv_interval = 30  # 30-second polling interval
     csv_elapsed = 0
 
-    csv_ready = False
+    # Define namespaces to check based on tier
+    if tier == "virt":
+        namespaces_to_check = ["openshift-nfd", "openshift-cnv"]
+        operator_names = ["NFD", "CNV"]
+    elif tier == "ai":
+        namespaces_to_check = [f"openshift-{tier}"]
+        operator_names = ["AI"]
+    else:
+        namespaces_to_check = [f"openshift-{tier}"]
+        operator_names = [tier.upper()]
+
+    # Wait for CSVs in all required namespaces
+    all_csvs_ready = False
     while csv_elapsed < csv_timeout:
-        info(f"  Checking CSV status [{csv_elapsed}s/{csv_timeout}s]...")
+        info(f"  Checking operator CSVs [{csv_elapsed}s/{csv_timeout}s]...")
 
-        # Wait for any CSV in the operator namespace to be in Succeeded phase
-        wait_result = subprocess.run(
-            [
-                "oc", "wait",
-                "--for=condition=Succeeded",
-                "clusterserviceversion",
-                "--all",
-                "-n", "openshift-cnv" if tier == "virt" else f"openshift-{tier}",
-                f"--kubeconfig={args.spoke_kubeconfig}",
-                "--timeout=30s"
-            ],
-            capture_output=True,
-            text=True,
-        )
+        ready_count = 0
+        for i, namespace in enumerate(namespaces_to_check):
+            info(f"    Checking {operator_names[i]} CSV in {namespace}...")
 
-        if wait_result.returncode == 0:
-            info(f"  -> CSV is ready: {wait_result.stdout.strip()}")
-            csv_ready = True
+            wait_result = subprocess.run(
+                [
+                    "oc", "wait",
+                    "--for=condition=Succeeded",
+                    "clusterserviceversion",
+                    "--all",
+                    "-n", namespace,
+                    f"--kubeconfig={args.spoke_kubeconfig}",
+                    "--timeout=30s"
+                ],
+                capture_output=True,
+                text=True,
+            )
+
+            if wait_result.returncode == 0:
+                info(f"    -> {operator_names[i]} CSV is ready")
+                ready_count += 1
+            else:
+                info(f"    -> {operator_names[i]} CSV not ready yet")
+
+        if ready_count == len(namespaces_to_check):
+            info(f"  -> All operator CSVs are ready!")
+            all_csvs_ready = True
             break
 
         csv_elapsed += csv_interval
         if csv_elapsed < csv_timeout:
-            info(f"  -> CSV not ready yet, waiting {csv_interval}s...")
+            info(f"  -> Waiting {csv_interval}s for remaining CSVs...")
             time.sleep(csv_interval)
 
-    if not csv_ready:
-        error(f"CSV not ready after {csv_timeout}s timeout")
+    if not all_csvs_ready:
+        error(f"Not all operator CSVs ready after {csv_timeout}s timeout")
         sys.exit(1)
 
     # Phase 3: Build and apply activation manifests
