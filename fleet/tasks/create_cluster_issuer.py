@@ -15,23 +15,17 @@ import binascii
 import subprocess
 import sys
 
-from fleet.tasks._env import check_configmap_env, resolve_required
 from fleet.tasks._log import configure, error, info
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--cluster-name", default=None)
-    parser.add_argument("--acme-email", default=None)
+    parser.add_argument("--cluster-name", required=True)
+    parser.add_argument("--acme-email", default="admin@example.com")
     args = parser.parse_args()
 
-    check_configmap_env()
-    cluster = resolve_required(
-        args.cluster_name, "cluster-name", "create-cluster-issuer"
-    )
-    acme_email = resolve_required(
-        args.acme_email, "acme-email", "create-cluster-issuer"
-    )
+    cluster = args.cluster_name
+    acme_email = args.acme_email
 
     configure("create-cluster-issuer")
 

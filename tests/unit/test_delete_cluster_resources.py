@@ -7,12 +7,6 @@ import pytest
 from fleet.tasks.delete_cluster_resources import main
 
 
-def test_configmap_missing():
-    with mock.patch("sys.argv", ["prog", "--cluster-name", "c"]):
-        with pytest.raises(SystemExit, match="1"):
-            main()
-
-
 def _run(args, **kwargs):
     return subprocess.CompletedProcess(args, returncode=0, stdout="", stderr="")
 
@@ -24,8 +18,7 @@ def _run_fail(args, **kwargs):
 
 
 @mock.patch("fleet.tasks.delete_cluster_resources.subprocess.run")
-def test_all_deletions_succeed(mock_run, monkeypatch):
-    monkeypatch.setenv("FLEET_CONFIGMAP_LOADED", "true")
+def test_all_deletions_succeed(mock_run):
     mock_run.return_value = _run([])
     with mock.patch("sys.argv", ["prog", "--cluster-name", "test-cluster"]):
         main()
@@ -94,8 +87,7 @@ def test_all_deletions_succeed(mock_run, monkeypatch):
 
 
 @mock.patch("fleet.tasks.delete_cluster_resources.subprocess.run")
-def test_wait_timeout_is_non_fatal(mock_run, monkeypatch):
-    monkeypatch.setenv("FLEET_CONFIGMAP_LOADED", "true")
+def test_wait_timeout_is_non_fatal(mock_run):
     mock_run.side_effect = [
         _run([]),
         _run([]),
@@ -109,8 +101,7 @@ def test_wait_timeout_is_non_fatal(mock_run, monkeypatch):
 
 
 @mock.patch("fleet.tasks.delete_cluster_resources.subprocess.run")
-def test_all_resources_already_deleted(mock_run, monkeypatch):
-    monkeypatch.setenv("FLEET_CONFIGMAP_LOADED", "true")
+def test_all_resources_already_deleted(mock_run):
     mock_run.return_value = _run([])
     with mock.patch("sys.argv", ["prog", "--cluster-name", "test-cluster"]):
         main()

@@ -9,23 +9,14 @@ import subprocess
 import sys
 import textwrap
 
-from fleet.tasks._env import check_configmap_env, resolve_required
 from fleet.tasks._log import configure, error, info
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--cluster-name", default=None)
-    parser.add_argument("--spoke-kubeconfig", default=None)
+    parser.add_argument("--cluster-name", required=True)
+    parser.add_argument("--spoke-kubeconfig", required=True)
     args = parser.parse_args()
-
-    check_configmap_env()
-    args.cluster_name = resolve_required(
-        args.cluster_name, "cluster-name", "configure-spoke-rbac"
-    )
-    args.spoke_kubeconfig = resolve_required(
-        args.spoke_kubeconfig, "spoke-kubeconfig", "configure-spoke-rbac"
-    )
 
     configure("configure-spoke-rbac")
 

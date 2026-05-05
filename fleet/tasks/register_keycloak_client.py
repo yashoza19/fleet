@@ -18,7 +18,6 @@ import textwrap
 
 import requests
 
-from fleet.tasks._env import resolve_batch
 from fleet.tasks._log import configure, error, info
 
 
@@ -74,30 +73,15 @@ def _build_client_payload(
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--cluster-name", default=None)
-    parser.add_argument("--keycloak-url", default=None)
-    parser.add_argument("--keycloak-realm", default=None)
-    parser.add_argument("--keycloak-admin-secret", default=None)
-    parser.add_argument("--base-domain", default=None)
-    parser.add_argument("--auth-realm", default=None)
-    parser.add_argument("--provider-name", default=None)
+    parser.add_argument("--cluster-name", required=True)
+    parser.add_argument("--keycloak-url", required=True)
+    parser.add_argument("--keycloak-realm", required=True)
+    parser.add_argument("--keycloak-admin-secret", required=True)
+    parser.add_argument("--base-domain", required=True)
+    parser.add_argument("--auth-realm", default="master")
+    parser.add_argument("--provider-name", default="RedHat")
     parser.add_argument("--insecure", action="store_true")
     args = parser.parse_args()
-
-    resolve_batch(
-        args,
-        "register-keycloak-client",
-        required=[
-            "cluster_name",
-            "keycloak_url",
-            "keycloak_realm",
-            "keycloak_admin_secret",
-            "base_domain",
-            "auth_realm",
-            "provider_name",
-        ],
-        bool_flags=["insecure"],
-    )
 
     configure("register-keycloak-client")
 

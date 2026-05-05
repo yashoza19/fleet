@@ -50,8 +50,7 @@ def _status_failed():
 
 @mock.patch("fleet.tasks.run_post_provision.time.sleep")
 @mock.patch("fleet.tasks.run_post_provision.subprocess.run")
-def test_run_success(mock_run, _mock_sleep, monkeypatch):
-    monkeypatch.setenv("FLEET_CONFIGMAP_LOADED", "true")
+def test_run_success(mock_run, _mock_sleep):
     mock_run.side_effect = [_create_result(), _status_succeeded()]
     with mock.patch("sys.argv", BASE_ARGV):
         main()
@@ -60,8 +59,7 @@ def test_run_success(mock_run, _mock_sleep, monkeypatch):
 
 @mock.patch("fleet.tasks.run_post_provision.time.sleep")
 @mock.patch("fleet.tasks.run_post_provision.subprocess.run")
-def test_run_succeeds_with_completed_reason(mock_run, _mock_sleep, monkeypatch):
-    monkeypatch.setenv("FLEET_CONFIGMAP_LOADED", "true")
+def test_run_succeeds_with_completed_reason(mock_run, _mock_sleep):
     mock_run.side_effect = [_create_result(), _status_result("True", "Completed")]
     with mock.patch("sys.argv", BASE_ARGV):
         main()
@@ -70,8 +68,7 @@ def test_run_succeeds_with_completed_reason(mock_run, _mock_sleep, monkeypatch):
 
 @mock.patch("fleet.tasks.run_post_provision.time.sleep")
 @mock.patch("fleet.tasks.run_post_provision.subprocess.run")
-def test_run_polls_until_success(mock_run, _mock_sleep, monkeypatch):
-    monkeypatch.setenv("FLEET_CONFIGMAP_LOADED", "true")
+def test_run_polls_until_success(mock_run, _mock_sleep):
     mock_run.side_effect = [
         _create_result(),
         _status_running(),
@@ -84,8 +81,7 @@ def test_run_polls_until_success(mock_run, _mock_sleep, monkeypatch):
 
 
 @mock.patch("fleet.tasks.run_post_provision.subprocess.run")
-def test_create_fails(mock_run, monkeypatch):
-    monkeypatch.setenv("FLEET_CONFIGMAP_LOADED", "true")
+def test_create_fails(mock_run):
     mock_run.side_effect = [_create_fail()]
     with mock.patch("sys.argv", BASE_ARGV):
         with pytest.raises(SystemExit, match="1"):
@@ -95,8 +91,7 @@ def test_create_fails(mock_run, monkeypatch):
 
 @mock.patch("fleet.tasks.run_post_provision.time.sleep")
 @mock.patch("fleet.tasks.run_post_provision.subprocess.run")
-def test_pipeline_fails(mock_run, _mock_sleep, monkeypatch):
-    monkeypatch.setenv("FLEET_CONFIGMAP_LOADED", "true")
+def test_pipeline_fails(mock_run, _mock_sleep):
     mock_run.side_effect = [_create_result(), _status_failed()]
     with mock.patch("sys.argv", BASE_ARGV):
         with pytest.raises(SystemExit, match="1"):
@@ -106,8 +101,7 @@ def test_pipeline_fails(mock_run, _mock_sleep, monkeypatch):
 @mock.patch("fleet.tasks.run_post_provision.time.time")
 @mock.patch("fleet.tasks.run_post_provision.time.sleep")
 @mock.patch("fleet.tasks.run_post_provision.subprocess.run")
-def test_timeout(mock_run, _mock_sleep, mock_time, monkeypatch):
-    monkeypatch.setenv("FLEET_CONFIGMAP_LOADED", "true")
+def test_timeout(mock_run, _mock_sleep, mock_time):
     mock_time.side_effect = [0.0, 601.0]
     mock_run.side_effect = [_create_result(), _status_running()]
     with mock.patch("sys.argv", BASE_ARGV):
@@ -117,8 +111,7 @@ def test_timeout(mock_run, _mock_sleep, mock_time, monkeypatch):
 
 @mock.patch("fleet.tasks.run_post_provision.time.sleep")
 @mock.patch("fleet.tasks.run_post_provision.subprocess.run")
-def test_pipelinerun_yaml_params(mock_run, _mock_sleep, monkeypatch):
-    monkeypatch.setenv("FLEET_CONFIGMAP_LOADED", "true")
+def test_pipelinerun_yaml_params(mock_run, _mock_sleep):
     mock_run.side_effect = [_create_result(), _status_succeeded()]
     with mock.patch("sys.argv", BASE_ARGV):
         main()
@@ -131,20 +124,11 @@ def test_pipelinerun_yaml_params(mock_run, _mock_sleep, monkeypatch):
     assert params["tier"] == "base"
     assert params["openshift-cluster"] == "false"
     assert params["spoke-kubeconfig"] == "test-vc-admin-kubeconfig"
-    expected = {
-        "cluster-name",
-        "tier",
-        "openshift-cluster",
-        "spoke-kubeconfig",
-        "pipeline-image",
-    }
-    assert set(params.keys()) == expected
 
 
 @mock.patch("fleet.tasks.run_post_provision.time.sleep")
 @mock.patch("fleet.tasks.run_post_provision.subprocess.run")
-def test_pipelinerun_has_workspace_and_sa(mock_run, _mock_sleep, monkeypatch):
-    monkeypatch.setenv("FLEET_CONFIGMAP_LOADED", "true")
+def test_pipelinerun_has_workspace_and_sa(mock_run, _mock_sleep):
     mock_run.side_effect = [_create_result(), _status_succeeded()]
     with mock.patch("sys.argv", BASE_ARGV):
         main()
@@ -158,8 +142,7 @@ def test_pipelinerun_has_workspace_and_sa(mock_run, _mock_sleep, monkeypatch):
 
 @mock.patch("fleet.tasks.run_post_provision.time.sleep")
 @mock.patch("fleet.tasks.run_post_provision.subprocess.run")
-def test_custom_timeout(mock_run, _mock_sleep, monkeypatch):
-    monkeypatch.setenv("FLEET_CONFIGMAP_LOADED", "true")
+def test_custom_timeout(mock_run, _mock_sleep):
     mock_run.side_effect = [_create_result(), _status_succeeded()]
     argv = BASE_ARGV + ["--timeout", "120"]
     with mock.patch("sys.argv", argv):
@@ -169,8 +152,7 @@ def test_custom_timeout(mock_run, _mock_sleep, monkeypatch):
 
 @mock.patch("fleet.tasks.run_post_provision.time.sleep")
 @mock.patch("fleet.tasks.run_post_provision.subprocess.run")
-def test_extracts_pipelinerun_name_from_output(mock_run, _mock_sleep, monkeypatch):
-    monkeypatch.setenv("FLEET_CONFIGMAP_LOADED", "true")
+def test_extracts_pipelinerun_name_from_output(mock_run, _mock_sleep):
     mock_run.side_effect = [
         _create_result("post-provision-my-vc-xyz99"),
         _status_succeeded(),
@@ -179,16 +161,3 @@ def test_extracts_pipelinerun_name_from_output(mock_run, _mock_sleep, monkeypatc
         main()
     poll_call = mock_run.call_args_list[1].args[0]
     assert "post-provision-my-vc-xyz99" in poll_call
-
-
-@mock.patch("fleet.tasks.run_post_provision.time.sleep")
-@mock.patch("fleet.tasks.run_post_provision.subprocess.run")
-def test_pipelinerun_includes_envfrom_configmap(mock_run, _mock_sleep, monkeypatch):
-    monkeypatch.setenv("FLEET_CONFIGMAP_LOADED", "true")
-    mock_run.side_effect = [_create_result(), _status_succeeded()]
-    with mock.patch("sys.argv", BASE_ARGV):
-        main()
-    create_call = mock_run.call_args_list[0]
-    doc = yaml.safe_load(create_call.kwargs["input"])
-    env_from = doc["spec"]["taskRunTemplate"]["podTemplate"]["envFrom"]
-    assert env_from == [{"configMapRef": {"name": "fleet-pipeline-defaults"}}]

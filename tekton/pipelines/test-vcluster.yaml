@@ -10,10 +10,10 @@ spec:
       type: string
     - name: tier
       type: string
-      default: ""
+      default: base
     - name: pipeline-image
       type: string
-      default: ""
+      default: quay.io/rhopl/fleet-pipeline:latest
     - name: values-file
       type: string
       default: ""
@@ -25,10 +25,10 @@ spec:
       default: ""
     - name: create-aws-creds
       type: string
-      default: ""
+      default: "false"
     - name: timeout
       type: string
-      default: ""
+      default: "600"
   workspaces:
     - name: shared-workspace
 

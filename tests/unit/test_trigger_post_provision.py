@@ -15,6 +15,18 @@ BASE_ARGV = [
     "base",
     "--base-domain",
     "example.com",
+    "--keycloak-issuer-url",
+    "https://keycloak.example.com/realms/openshift",
+    "--keycloak-url",
+    "https://keycloak.example.com",
+    "--keycloak-realm",
+    "openshift",
+    "--keycloak-admin-secret",
+    "keycloak-admin",
+    "--auth-realm",
+    "master",
+    "--acme-email",
+    "certs@example.com",
 ]
 
 
@@ -40,8 +52,7 @@ def _run_and_capture_yaml(mock_run, argv):
 
 
 @mock.patch("fleet.tasks.trigger_post_provision.subprocess.run")
-def test_trigger_success(mock_run, monkeypatch):
-    monkeypatch.setenv("FLEET_CONFIGMAP_LOADED", "true")
+def test_trigger_success(mock_run):
     mock_run.side_effect = [_basedomain_result(), _create_result()]
     with mock.patch("sys.argv", BASE_ARGV):
         main()
@@ -49,8 +60,7 @@ def test_trigger_success(mock_run, monkeypatch):
 
 
 @mock.patch("fleet.tasks.trigger_post_provision.subprocess.run")
-def test_trigger_includes_cluster_and_tier(mock_run, monkeypatch):
-    monkeypatch.setenv("FLEET_CONFIGMAP_LOADED", "true")
+def test_trigger_includes_cluster_and_tier(mock_run):
     mock_run.side_effect = [_basedomain_result(), _create_result()]
     argv = [
         "prog",
@@ -60,6 +70,18 @@ def test_trigger_includes_cluster_and_tier(mock_run, monkeypatch):
         "virt",
         "--base-domain",
         "example.com",
+        "--keycloak-issuer-url",
+        "https://kc.example.com/realms/r",
+        "--keycloak-url",
+        "https://kc.example.com",
+        "--keycloak-realm",
+        "r",
+        "--keycloak-admin-secret",
+        "keycloak-admin",
+        "--auth-realm",
+        "master",
+        "--acme-email",
+        "certs@example.com",
     ]
     with mock.patch("sys.argv", argv):
         main()
@@ -70,8 +92,7 @@ def test_trigger_includes_cluster_and_tier(mock_run, monkeypatch):
 
 
 @mock.patch("fleet.tasks.trigger_post_provision.subprocess.run")
-def test_trigger_create_fails(mock_run, monkeypatch):
-    monkeypatch.setenv("FLEET_CONFIGMAP_LOADED", "true")
+def test_trigger_create_fails(mock_run):
     mock_run.side_effect = [_basedomain_result(), _create_result(ok=False)]
     with mock.patch("sys.argv", BASE_ARGV):
         with pytest.raises(SystemExit, match="1"):
@@ -79,8 +100,7 @@ def test_trigger_create_fails(mock_run, monkeypatch):
 
 
 @mock.patch("fleet.tasks.trigger_post_provision.subprocess.run")
-def test_trigger_basedomain_lookup_fails(mock_run, monkeypatch):
-    monkeypatch.setenv("FLEET_CONFIGMAP_LOADED", "true")
+def test_trigger_basedomain_lookup_fails(mock_run):
     mock_run.return_value = subprocess.CompletedProcess(
         [], returncode=1, stdout="", stderr="not found"
     )
@@ -91,8 +111,7 @@ def test_trigger_basedomain_lookup_fails(mock_run, monkeypatch):
 
 
 @mock.patch("fleet.tasks.trigger_post_provision.subprocess.run")
-def test_trigger_derives_dns_zones(mock_run, monkeypatch):
-    monkeypatch.setenv("FLEET_CONFIGMAP_LOADED", "true")
+def test_trigger_derives_dns_zones(mock_run):
     mock_run.side_effect = [_basedomain_result(), _create_result()]
     argv = [
         "prog",
@@ -102,6 +121,18 @@ def test_trigger_derives_dns_zones(mock_run, monkeypatch):
         "base",
         "--base-domain",
         "example.com",
+        "--keycloak-issuer-url",
+        "https://kc.example.com/realms/r",
+        "--keycloak-url",
+        "https://kc.example.com",
+        "--keycloak-realm",
+        "r",
+        "--keycloak-admin-secret",
+        "keycloak-admin",
+        "--auth-realm",
+        "master",
+        "--acme-email",
+        "certs@example.com",
     ]
     with mock.patch("sys.argv", argv):
         main()
@@ -114,8 +145,7 @@ def test_trigger_derives_dns_zones(mock_run, monkeypatch):
 
 
 @mock.patch("fleet.tasks.trigger_post_provision.subprocess.run")
-def test_trigger_creates_pipelinerun_with_workspaces(mock_run, monkeypatch):
-    monkeypatch.setenv("FLEET_CONFIGMAP_LOADED", "true")
+def test_trigger_creates_pipelinerun_with_workspaces(mock_run):
     mock_run.side_effect = [_basedomain_result(), _create_result()]
     doc = _run_and_capture_yaml(mock_run, BASE_ARGV)
     assert doc["kind"] == "PipelineRun"
@@ -128,8 +158,7 @@ def test_trigger_creates_pipelinerun_with_workspaces(mock_run, monkeypatch):
 
 
 @mock.patch("fleet.tasks.trigger_post_provision.subprocess.run")
-def test_trigger_creates_pipelinerun_with_taskruntemplate(mock_run, monkeypatch):
-    monkeypatch.setenv("FLEET_CONFIGMAP_LOADED", "true")
+def test_trigger_creates_pipelinerun_with_taskruntemplate(mock_run):
     mock_run.side_effect = [_basedomain_result(), _create_result()]
     doc = _run_and_capture_yaml(mock_run, BASE_ARGV)
     trt = doc["spec"]["taskRunTemplate"]
@@ -138,36 +167,56 @@ def test_trigger_creates_pipelinerun_with_taskruntemplate(mock_run, monkeypatch)
 
 
 @mock.patch("fleet.tasks.trigger_post_provision.subprocess.run")
-def test_trigger_only_passes_per_run_params(mock_run, monkeypatch):
-    monkeypatch.setenv("FLEET_CONFIGMAP_LOADED", "true")
+def test_trigger_passes_keycloak_and_auth_params(mock_run):
     mock_run.side_effect = [_basedomain_result(), _create_result()]
-    doc = _run_and_capture_yaml(mock_run, BASE_ARGV)
-    params = {p["name"] for p in doc["spec"]["params"]}
-    assert params == {"cluster-name", "tier", "dns-zones", "base-domain"}
+    argv = BASE_ARGV[:]
+    with mock.patch("sys.argv", argv):
+        main()
+    stdin_yaml = mock_run.call_args.kwargs["input"]
+    doc = yaml.safe_load(stdin_yaml)
+    params = {p["name"]: p["value"] for p in doc["spec"]["params"]}
+    assert params["keycloak-url"] == "https://keycloak.example.com"
+    assert params["keycloak-realm"] == "openshift"
+    assert params["keycloak-admin-secret"] == "keycloak-admin"
+    assert params["auth-realm"] == "master"
 
 
 @mock.patch("fleet.tasks.trigger_post_provision.subprocess.run")
-def test_trigger_includes_envfrom_configmap(mock_run, monkeypatch):
-    monkeypatch.setenv("FLEET_CONFIGMAP_LOADED", "true")
+def test_trigger_passes_base_domain_and_issuer_url(mock_run):
+    mock_run.side_effect = [_basedomain_result(), _create_result()]
+    argv = [
+        "prog",
+        "--cluster-name",
+        "c1",
+        "--tier",
+        "ai",
+        "--base-domain",
+        "labs.example.com",
+        "--keycloak-issuer-url",
+        "https://sso.prod.com/realms/prod",
+        "--keycloak-url",
+        "https://sso.prod.com",
+        "--keycloak-realm",
+        "prod",
+        "--keycloak-admin-secret",
+        "keycloak-admin",
+        "--auth-realm",
+        "master",
+        "--acme-email",
+        "certs@prod.com",
+    ]
+    with mock.patch("sys.argv", argv):
+        main()
+    stdin_yaml = mock_run.call_args.kwargs["input"]
+    doc = yaml.safe_load(stdin_yaml)
+    params = {p["name"]: p["value"] for p in doc["spec"]["params"]}
+    assert params["base-domain"] == "labs.example.com"
+    assert params["keycloak-issuer-url"] == "https://sso.prod.com/realms/prod"
+
+
+@mock.patch("fleet.tasks.trigger_post_provision.subprocess.run")
+def test_trigger_passes_acme_email(mock_run):
     mock_run.side_effect = [_basedomain_result(), _create_result()]
     doc = _run_and_capture_yaml(mock_run, BASE_ARGV)
-    env_from = doc["spec"]["taskRunTemplate"]["podTemplate"]["envFrom"]
-    assert env_from == [{"configMapRef": {"name": "fleet-pipeline-defaults"}}]
-
-
-def test_env_var_fallback(monkeypatch):
-    """Params resolve from env vars when CLI args are missing."""
-    monkeypatch.setenv("FLEET_CONFIGMAP_LOADED", "true")
-    monkeypatch.setenv("FLEET_BASE_DOMAIN", "env.example.com")
-    argv = ["prog", "--cluster-name", "test-cluster", "--tier", "base"]
-    with mock.patch("sys.argv", argv), mock.patch(
-        "fleet.tasks.trigger_post_provision.subprocess.run"
-    ) as mock_run:
-        mock_run.side_effect = [
-            subprocess.CompletedProcess([], 0, stdout="example.com", stderr=""),
-            subprocess.CompletedProcess(
-                [], 0, stdout="pipelinerun/pr created", stderr=""
-            ),
-        ]
-        main()
-    assert mock_run.call_count == 2
+    params = {p["name"]: p["value"] for p in doc["spec"]["params"]}
+    assert params["acme-email"] == "certs@example.com"

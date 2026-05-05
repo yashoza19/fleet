@@ -8,25 +8,22 @@ import argparse
 import subprocess
 import sys
 
-from fleet.tasks._env import check_configmap_env, resolve, resolve_required
 from fleet.tasks._log import configure, error, info
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--cluster-name", default=None)
-    parser.add_argument("--timeout", default=None)
+    parser.add_argument("--cluster-name", required=True)
+    parser.add_argument("--timeout", default="60m")
     args = parser.parse_args()
 
-    check_configmap_env()
     configure("wait-for-hive-ready")
 
-    cluster = resolve_required(args.cluster_name, "cluster-name", "wait-for-hive-ready")
-    timeout = resolve(args.timeout, "timeout", "wait-for-hive-ready") or "60m"
+    cluster = args.cluster_name
     info("=== Waiting for Hive to provision cluster ===")
     info(f"Parameters:")
     info(f"  cluster-name={cluster}")
-    info(f"  timeout={timeout}")
+    info(f"  timeout={args.timeout}")
 
     info(f"Waiting for ClusterDeployment '{cluster}' to reach Provisioned condition...")
     result = subprocess.run(
@@ -37,7 +34,7 @@ def main() -> None:
             f"clusterdeployment/{cluster}",
             "-n",
             cluster,
-            f"--timeout={timeout}",
+            f"--timeout={args.timeout}",
         ],
         capture_output=True,
         text=True,

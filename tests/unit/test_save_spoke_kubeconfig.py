@@ -9,8 +9,7 @@ from fleet.tasks.save_spoke_kubeconfig import main
 
 @mock.patch("builtins.open", mock.mock_open(read_data="kubeconfig-content-here"))
 @mock.patch("fleet.tasks.save_spoke_kubeconfig.subprocess.run")
-def test_save_success(mock_run, monkeypatch):
-    monkeypatch.setenv("FLEET_CONFIGMAP_LOADED", "true")
+def test_save_success(mock_run):
     mock_run.return_value = subprocess.CompletedProcess(
         [], returncode=0, stdout="secret configured", stderr=""
     )
@@ -34,8 +33,7 @@ def test_save_success(mock_run, monkeypatch):
 
 @mock.patch("builtins.open", mock.mock_open(read_data="kubeconfig-data"))
 @mock.patch("fleet.tasks.save_spoke_kubeconfig.subprocess.run")
-def test_save_creates_secret_with_cluster_name(mock_run, monkeypatch):
-    monkeypatch.setenv("FLEET_CONFIGMAP_LOADED", "true")
+def test_save_creates_secret_with_cluster_name(mock_run):
     mock_run.return_value = subprocess.CompletedProcess(
         [], returncode=0, stdout="configured", stderr=""
     )
@@ -57,8 +55,7 @@ def test_save_creates_secret_with_cluster_name(mock_run, monkeypatch):
 
 @mock.patch("builtins.open", mock.mock_open(read_data="kubeconfig-data"))
 @mock.patch("fleet.tasks.save_spoke_kubeconfig.subprocess.run")
-def test_save_default_namespace(mock_run, monkeypatch):
-    monkeypatch.setenv("FLEET_CONFIGMAP_LOADED", "true")
+def test_save_default_namespace(mock_run):
     mock_run.return_value = subprocess.CompletedProcess(
         [], returncode=0, stdout="configured", stderr=""
     )
@@ -80,8 +77,7 @@ def test_save_default_namespace(mock_run, monkeypatch):
 
 @mock.patch("builtins.open", side_effect=FileNotFoundError("no such file"))
 @mock.patch("fleet.tasks.save_spoke_kubeconfig.subprocess.run")
-def test_save_file_not_found(mock_run, mock_open, monkeypatch):
-    monkeypatch.setenv("FLEET_CONFIGMAP_LOADED", "true")
+def test_save_file_not_found(mock_run, mock_open):
     with mock.patch(
         "sys.argv",
         [
@@ -98,8 +94,7 @@ def test_save_file_not_found(mock_run, mock_open, monkeypatch):
 
 @mock.patch("builtins.open", mock.mock_open(read_data="kubeconfig-data"))
 @mock.patch("fleet.tasks.save_spoke_kubeconfig.subprocess.run")
-def test_save_apply_fails(mock_run, monkeypatch):
-    monkeypatch.setenv("FLEET_CONFIGMAP_LOADED", "true")
+def test_save_apply_fails(mock_run):
     mock_run.return_value = subprocess.CompletedProcess(
         [], returncode=1, stdout="", stderr="forbidden"
     )

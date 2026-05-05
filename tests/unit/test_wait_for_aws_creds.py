@@ -9,8 +9,7 @@ from fleet.tasks.wait_for_aws_creds import main
 
 @mock.patch("fleet.tasks.wait_for_aws_creds.time.sleep")
 @mock.patch("fleet.tasks.wait_for_aws_creds.subprocess.run")
-def test_secret_found_immediately(mock_run, mock_sleep, monkeypatch):
-    monkeypatch.setenv("FLEET_CONFIGMAP_LOADED", "true")
+def test_secret_found_immediately(mock_run, mock_sleep):
     mock_run.return_value = subprocess.CompletedProcess(
         [], returncode=0, stdout="found", stderr=""
     )
@@ -26,8 +25,7 @@ def test_secret_found_immediately(mock_run, mock_sleep, monkeypatch):
 
 @mock.patch("fleet.tasks.wait_for_aws_creds.time.sleep")
 @mock.patch("fleet.tasks.wait_for_aws_creds.subprocess.run")
-def test_secret_found_after_retry(mock_run, mock_sleep, monkeypatch):
-    monkeypatch.setenv("FLEET_CONFIGMAP_LOADED", "true")
+def test_secret_found_after_retry(mock_run, mock_sleep):
     mock_run.side_effect = [
         subprocess.CompletedProcess([], returncode=1, stdout="", stderr="not found"),
         subprocess.CompletedProcess([], returncode=0, stdout="found", stderr=""),
@@ -42,8 +40,7 @@ def test_secret_found_after_retry(mock_run, mock_sleep, monkeypatch):
 
 @mock.patch("fleet.tasks.wait_for_aws_creds.time.sleep")
 @mock.patch("fleet.tasks.wait_for_aws_creds.subprocess.run")
-def test_timeout(mock_run, mock_sleep, monkeypatch):
-    monkeypatch.setenv("FLEET_CONFIGMAP_LOADED", "true")
+def test_timeout(mock_run, mock_sleep):
     mock_run.return_value = subprocess.CompletedProcess(
         [], returncode=1, stdout="", stderr="not found"
     )

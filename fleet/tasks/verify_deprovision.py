@@ -9,7 +9,6 @@ import argparse
 import subprocess
 import sys
 
-from fleet.tasks._env import resolve_required
 from fleet.tasks._log import configure, info, warn
 
 
@@ -36,11 +35,8 @@ def _check_gone(resource_type: str, name: str, namespace: str | None = None) -> 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--cluster-name", default=None)
+    parser.add_argument("--cluster-name", required=True)
     args = parser.parse_args()
-    args.cluster_name = resolve_required(
-        args.cluster_name, "cluster-name", "verify-deprovision"
-    )
 
     cluster = args.cluster_name
     configure("verify-deprovision")

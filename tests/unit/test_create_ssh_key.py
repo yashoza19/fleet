@@ -20,8 +20,7 @@ def _fail(args=None, stderr="error", **kwargs):
 
 
 @mock.patch("fleet.tasks.create_ssh_key.subprocess.run")
-def test_secret_already_exists(mock_run, monkeypatch):
-    monkeypatch.setenv("FLEET_CONFIGMAP_LOADED", "true")
+def test_secret_already_exists(mock_run):
     mock_run.return_value = _ok()
     with mock.patch("sys.argv", ["prog", "--cluster-name", "test-cluster"]):
         main()
@@ -35,8 +34,7 @@ def test_secret_already_exists(mock_run, monkeypatch):
 @mock.patch("builtins.open", mock.mock_open(read_data="PRIVATE-KEY-DATA"))
 @mock.patch("fleet.tasks.create_ssh_key.tempfile.TemporaryDirectory")
 @mock.patch("fleet.tasks.create_ssh_key.subprocess.run")
-def test_ssh_key_created(mock_run, mock_tmpdir, monkeypatch):
-    monkeypatch.setenv("FLEET_CONFIGMAP_LOADED", "true")
+def test_ssh_key_created(mock_run, mock_tmpdir):
     mock_tmpdir.return_value.__enter__ = mock.Mock(return_value="/tmp/fakedir")
     mock_tmpdir.return_value.__exit__ = mock.Mock(return_value=False)
     mock_run.side_effect = [
@@ -98,8 +96,7 @@ def test_ssh_key_created(mock_run, mock_tmpdir, monkeypatch):
 
 @mock.patch("fleet.tasks.create_ssh_key.tempfile.TemporaryDirectory")
 @mock.patch("fleet.tasks.create_ssh_key.subprocess.run")
-def test_keygen_fails(mock_run, mock_tmpdir, monkeypatch):
-    monkeypatch.setenv("FLEET_CONFIGMAP_LOADED", "true")
+def test_keygen_fails(mock_run, mock_tmpdir):
     mock_tmpdir.return_value.__enter__ = mock.Mock(return_value="/tmp/fakedir")
     mock_tmpdir.return_value.__exit__ = mock.Mock(return_value=False)
     mock_run.side_effect = [
@@ -114,8 +111,7 @@ def test_keygen_fails(mock_run, mock_tmpdir, monkeypatch):
 @mock.patch("builtins.open", mock.mock_open(read_data="PRIVATE-KEY-DATA"))
 @mock.patch("fleet.tasks.create_ssh_key.tempfile.TemporaryDirectory")
 @mock.patch("fleet.tasks.create_ssh_key.subprocess.run")
-def test_apply_fails(mock_run, mock_tmpdir, monkeypatch):
-    monkeypatch.setenv("FLEET_CONFIGMAP_LOADED", "true")
+def test_apply_fails(mock_run, mock_tmpdir):
     mock_tmpdir.return_value.__enter__ = mock.Mock(return_value="/tmp/fakedir")
     mock_tmpdir.return_value.__exit__ = mock.Mock(return_value=False)
     mock_run.side_effect = [

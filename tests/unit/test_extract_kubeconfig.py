@@ -8,8 +8,7 @@ from fleet.tasks.extract_kubeconfig import main
 
 
 @mock.patch("fleet.tasks.extract_kubeconfig.subprocess.run")
-def test_extract_with_secret_ref(mock_run, monkeypatch):
-    monkeypatch.setenv("FLEET_CONFIGMAP_LOADED", "true")
+def test_extract_with_secret_ref(mock_run):
     mock_run.side_effect = [
         subprocess.CompletedProcess(
             [], returncode=0, stdout="my-kubeconfig-secret", stderr=""
@@ -26,8 +25,7 @@ def test_extract_with_secret_ref(mock_run, monkeypatch):
 
 
 @mock.patch("fleet.tasks.extract_kubeconfig.subprocess.run")
-def test_extract_fallback_secret_name(mock_run, monkeypatch):
-    monkeypatch.setenv("FLEET_CONFIGMAP_LOADED", "true")
+def test_extract_fallback_secret_name(mock_run):
     mock_run.side_effect = [
         subprocess.CompletedProcess([], returncode=1, stdout="", stderr="not found"),
         subprocess.CompletedProcess([], returncode=0, stdout="kubeconfig", stderr=""),
@@ -41,8 +39,7 @@ def test_extract_fallback_secret_name(mock_run, monkeypatch):
 
 
 @mock.patch("fleet.tasks.extract_kubeconfig.subprocess.run")
-def test_extract_fails(mock_run, monkeypatch):
-    monkeypatch.setenv("FLEET_CONFIGMAP_LOADED", "true")
+def test_extract_fails(mock_run):
     mock_run.side_effect = [
         subprocess.CompletedProcess([], returncode=0, stdout="secret-name", stderr=""),
         subprocess.CompletedProcess([], returncode=1, stdout="", stderr="error"),
@@ -55,8 +52,7 @@ def test_extract_fails(mock_run, monkeypatch):
 
 
 @mock.patch("fleet.tasks.extract_kubeconfig.subprocess.run")
-def test_extract_with_spoke_kubeconfig_skips_clusterdeployment(mock_run, monkeypatch):
-    monkeypatch.setenv("FLEET_CONFIGMAP_LOADED", "true")
+def test_extract_with_spoke_kubeconfig_skips_clusterdeployment(mock_run):
     mock_run.side_effect = [
         subprocess.CompletedProcess([], returncode=0, stdout="kubeconfig", stderr=""),
     ]
@@ -79,8 +75,7 @@ def test_extract_with_spoke_kubeconfig_skips_clusterdeployment(mock_run, monkeyp
 
 
 @mock.patch("fleet.tasks.extract_kubeconfig.subprocess.run")
-def test_extract_with_spoke_kubeconfig_fails(mock_run, monkeypatch):
-    monkeypatch.setenv("FLEET_CONFIGMAP_LOADED", "true")
+def test_extract_with_spoke_kubeconfig_fails(mock_run):
     mock_run.side_effect = [
         subprocess.CompletedProcess([], returncode=1, stdout="", stderr="error"),
     ]

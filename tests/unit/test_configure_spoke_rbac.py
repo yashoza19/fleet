@@ -8,8 +8,7 @@ from fleet.tasks.configure_spoke_rbac import main
 
 
 @mock.patch("fleet.tasks.configure_spoke_rbac.subprocess.run")
-def test_rbac_success(mock_run, monkeypatch):
-    monkeypatch.setenv("FLEET_CONFIGMAP_LOADED", "true")
+def test_rbac_success(mock_run):
     mock_run.return_value = subprocess.CompletedProcess(
         [], returncode=0, stdout="configured", stderr=""
     )
@@ -31,8 +30,7 @@ def test_rbac_success(mock_run, monkeypatch):
 
 
 @mock.patch("fleet.tasks.configure_spoke_rbac.subprocess.run")
-def test_rbac_creates_group_and_binding(mock_run, monkeypatch):
-    monkeypatch.setenv("FLEET_CONFIGMAP_LOADED", "true")
+def test_rbac_creates_group_and_binding(mock_run):
     mock_run.return_value = subprocess.CompletedProcess(
         [], returncode=0, stdout="configured", stderr=""
     )
@@ -58,8 +56,7 @@ def test_rbac_creates_group_and_binding(mock_run, monkeypatch):
 
 
 @mock.patch("fleet.tasks.configure_spoke_rbac.subprocess.run")
-def test_rbac_apply_fails(mock_run, monkeypatch):
-    monkeypatch.setenv("FLEET_CONFIGMAP_LOADED", "true")
+def test_rbac_apply_fails(mock_run):
     mock_run.return_value = subprocess.CompletedProcess(
         [], returncode=1, stdout="", stderr="forbidden"
     )
@@ -78,8 +75,7 @@ def test_rbac_apply_fails(mock_run, monkeypatch):
 
 
 @mock.patch("fleet.tasks.configure_spoke_rbac.subprocess.run")
-def test_rbac_binds_cluster_admin_role(mock_run, monkeypatch):
-    monkeypatch.setenv("FLEET_CONFIGMAP_LOADED", "true")
+def test_rbac_binds_cluster_admin_role(mock_run):
     mock_run.return_value = subprocess.CompletedProcess(
         [], returncode=0, stdout="configured", stderr=""
     )

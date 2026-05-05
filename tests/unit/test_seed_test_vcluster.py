@@ -19,8 +19,7 @@ def _fail(**kwargs):
 
 @mock.patch("builtins.open", mock.mock_open(read_data="kubeconfig-data"))
 @mock.patch("fleet.tasks.seed_test_vcluster.subprocess.run")
-def test_seed_success(mock_run, monkeypatch):
-    monkeypatch.setenv("FLEET_CONFIGMAP_LOADED", "true")
+def test_seed_success(mock_run):
     mock_run.side_effect = [_ok(), _ok(), _ok(), _ok()]
     with mock.patch(
         "sys.argv",
@@ -40,8 +39,7 @@ def test_seed_success(mock_run, monkeypatch):
 
 @mock.patch("builtins.open", mock.mock_open(read_data="kubeconfig-data"))
 @mock.patch("fleet.tasks.seed_test_vcluster.subprocess.run")
-def test_seed_with_aws_creds(mock_run, monkeypatch):
-    monkeypatch.setenv("FLEET_CONFIGMAP_LOADED", "true")
+def test_seed_with_aws_creds(mock_run):
     mock_run.side_effect = [_ok(), _ok(), _ok(), _ok(), _ok()]
     with mock.patch(
         "sys.argv",
@@ -64,8 +62,7 @@ def test_seed_with_aws_creds(mock_run, monkeypatch):
 
 @mock.patch("builtins.open", mock.mock_open(read_data="kubeconfig-data"))
 @mock.patch("fleet.tasks.seed_test_vcluster.subprocess.run")
-def test_namespace_create_fails(mock_run, monkeypatch):
-    monkeypatch.setenv("FLEET_CONFIGMAP_LOADED", "true")
+def test_namespace_create_fails(mock_run):
     mock_run.side_effect = [_fail()]
     with mock.patch(
         "sys.argv",
@@ -86,8 +83,7 @@ def test_namespace_create_fails(mock_run, monkeypatch):
 
 @mock.patch("builtins.open", mock.mock_open(read_data="kubeconfig-data"))
 @mock.patch("fleet.tasks.seed_test_vcluster.subprocess.run")
-def test_kubeconfig_secret_fails(mock_run, monkeypatch):
-    monkeypatch.setenv("FLEET_CONFIGMAP_LOADED", "true")
+def test_kubeconfig_secret_fails(mock_run):
     mock_run.side_effect = [_ok(), _fail()]
     with mock.patch(
         "sys.argv",
@@ -107,8 +103,7 @@ def test_kubeconfig_secret_fails(mock_run, monkeypatch):
 
 @mock.patch("builtins.open", mock.mock_open(read_data="kubeconfig-data"))
 @mock.patch("fleet.tasks.seed_test_vcluster.subprocess.run")
-def test_managedcluster_create_fails(mock_run, monkeypatch):
-    monkeypatch.setenv("FLEET_CONFIGMAP_LOADED", "true")
+def test_managedcluster_create_fails(mock_run):
     mock_run.side_effect = [_ok(), _ok(), _fail()]
     with mock.patch(
         "sys.argv",
@@ -127,8 +122,7 @@ def test_managedcluster_create_fails(mock_run, monkeypatch):
 
 
 @mock.patch("fleet.tasks.seed_test_vcluster.subprocess.run")
-def test_kubeconfig_file_not_found(mock_run, monkeypatch):
-    monkeypatch.setenv("FLEET_CONFIGMAP_LOADED", "true")
+def test_kubeconfig_file_not_found(mock_run):
     mock_run.side_effect = [_ok()]
     with mock.patch(
         "builtins.open", mock.Mock(side_effect=FileNotFoundError("not found"))
@@ -152,8 +146,7 @@ def test_kubeconfig_file_not_found(mock_run, monkeypatch):
 
 @mock.patch("builtins.open", mock.mock_open(read_data="kubeconfig-data"))
 @mock.patch("fleet.tasks.seed_test_vcluster.subprocess.run")
-def test_aws_creds_create_fails(mock_run, monkeypatch):
-    monkeypatch.setenv("FLEET_CONFIGMAP_LOADED", "true")
+def test_aws_creds_create_fails(mock_run):
     mock_run.side_effect = [_ok(), _ok(), _ok(), _ok(), _fail()]
     with mock.patch(
         "sys.argv",
@@ -175,8 +168,7 @@ def test_aws_creds_create_fails(mock_run, monkeypatch):
 
 @mock.patch("builtins.open", mock.mock_open(read_data="kubeconfig-data"))
 @mock.patch("fleet.tasks.seed_test_vcluster.subprocess.run")
-def test_auto_import_secret_created(mock_run, monkeypatch):
-    monkeypatch.setenv("FLEET_CONFIGMAP_LOADED", "true")
+def test_auto_import_secret_created(mock_run):
     mock_run.side_effect = [_ok(), _ok(), _ok(), _ok()]
     with mock.patch(
         "sys.argv",
@@ -198,8 +190,7 @@ def test_auto_import_secret_created(mock_run, monkeypatch):
 
 @mock.patch("builtins.open", mock.mock_open(read_data="kubeconfig-data"))
 @mock.patch("fleet.tasks.seed_test_vcluster.subprocess.run")
-def test_auto_import_secret_fails(mock_run, monkeypatch):
-    monkeypatch.setenv("FLEET_CONFIGMAP_LOADED", "true")
+def test_auto_import_secret_fails(mock_run):
     mock_run.side_effect = [_ok(), _ok(), _ok(), _fail()]
     with mock.patch(
         "sys.argv",

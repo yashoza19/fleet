@@ -10,30 +10,17 @@ import subprocess
 import sys
 import textwrap
 
-from fleet.tasks._env import resolve_batch
 from fleet.tasks._log import configure, error, info
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--cluster-name", default=None)
-    parser.add_argument("--spoke-kubeconfig", default=None)
-    parser.add_argument("--cluster-dir", default=None)
-    parser.add_argument("--keycloak-issuer-url", default=None)
-    parser.add_argument("--provider-name", default=None)
+    parser.add_argument("--cluster-name", required=True)
+    parser.add_argument("--spoke-kubeconfig", required=True)
+    parser.add_argument("--cluster-dir", required=True)
+    parser.add_argument("--keycloak-issuer-url", required=True)
+    parser.add_argument("--provider-name", default="RedHat")
     args = parser.parse_args()
-
-    resolve_batch(
-        args,
-        "configure-spoke-oauth",
-        required=[
-            "cluster_name",
-            "spoke_kubeconfig",
-            "cluster_dir",
-            "keycloak_issuer_url",
-            "provider_name",
-        ],
-    )
 
     configure("configure-spoke-oauth")
 

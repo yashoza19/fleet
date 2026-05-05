@@ -17,8 +17,7 @@ def _run_fail(args, **kwargs):
 
 @mock.patch("fleet.tasks.cleanup_hub_artifacts.time.sleep")
 @mock.patch("fleet.tasks.cleanup_hub_artifacts.subprocess.run")
-def test_all_deletions_succeed(mock_run, mock_sleep, monkeypatch):
-    monkeypatch.setenv("FLEET_CONFIGMAP_LOADED", "true")
+def test_all_deletions_succeed(mock_run, mock_sleep):
     mock_run.return_value = _run([])
     with mock.patch("sys.argv", ["prog", "--cluster-name", "test-cluster"]):
         main()
@@ -28,8 +27,7 @@ def test_all_deletions_succeed(mock_run, mock_sleep, monkeypatch):
 
 @mock.patch("fleet.tasks.cleanup_hub_artifacts.time.sleep")
 @mock.patch("fleet.tasks.cleanup_hub_artifacts.subprocess.run")
-def test_certificate_deletion_non_fatal(mock_run, mock_sleep, monkeypatch):
-    monkeypatch.setenv("FLEET_CONFIGMAP_LOADED", "true")
+def test_certificate_deletion_non_fatal(mock_run, mock_sleep):
     mock_run.side_effect = [
         _run_fail([]),
         _run([]),
@@ -47,8 +45,7 @@ def test_certificate_deletion_non_fatal(mock_run, mock_sleep, monkeypatch):
 
 @mock.patch("fleet.tasks.cleanup_hub_artifacts.time.sleep")
 @mock.patch("fleet.tasks.cleanup_hub_artifacts.subprocess.run")
-def test_clusterissuer_deletion_non_fatal(mock_run, mock_sleep, monkeypatch):
-    monkeypatch.setenv("FLEET_CONFIGMAP_LOADED", "true")
+def test_clusterissuer_deletion_non_fatal(mock_run, mock_sleep):
     mock_run.side_effect = [
         _run([]),
         _run_fail([]),
@@ -66,8 +63,7 @@ def test_clusterissuer_deletion_non_fatal(mock_run, mock_sleep, monkeypatch):
 
 @mock.patch("fleet.tasks.cleanup_hub_artifacts.time.sleep")
 @mock.patch("fleet.tasks.cleanup_hub_artifacts.subprocess.run")
-def test_crossplane_deletion_non_fatal(mock_run, mock_sleep, monkeypatch):
-    monkeypatch.setenv("FLEET_CONFIGMAP_LOADED", "true")
+def test_crossplane_deletion_non_fatal(mock_run, mock_sleep):
     mock_run.side_effect = [
         _run([]),
         _run([]),
@@ -85,8 +81,7 @@ def test_crossplane_deletion_non_fatal(mock_run, mock_sleep, monkeypatch):
 
 @mock.patch("fleet.tasks.cleanup_hub_artifacts.time.sleep")
 @mock.patch("fleet.tasks.cleanup_hub_artifacts.subprocess.run")
-def test_namespace_deletion_fails_exits_1(mock_run, mock_sleep, monkeypatch):
-    monkeypatch.setenv("FLEET_CONFIGMAP_LOADED", "true")
+def test_namespace_deletion_fails_exits_1(mock_run, mock_sleep):
     mock_run.side_effect = [
         _run([]),
         _run([]),
@@ -104,8 +99,7 @@ def test_namespace_deletion_fails_exits_1(mock_run, mock_sleep, monkeypatch):
 
 @mock.patch("fleet.tasks.cleanup_hub_artifacts.time.sleep")
 @mock.patch("fleet.tasks.cleanup_hub_artifacts.subprocess.run")
-def test_clusterissuer_uses_letsencrypt_prefix(mock_run, mock_sleep, monkeypatch):
-    monkeypatch.setenv("FLEET_CONFIGMAP_LOADED", "true")
+def test_clusterissuer_uses_letsencrypt_prefix(mock_run, mock_sleep):
     mock_run.return_value = _run([])
     with mock.patch("sys.argv", ["prog", "--cluster-name", "test-cluster"]):
         main()
@@ -124,8 +118,7 @@ def test_clusterissuer_uses_letsencrypt_prefix(mock_run, mock_sleep, monkeypatch
 
 @mock.patch("fleet.tasks.cleanup_hub_artifacts.time.sleep")
 @mock.patch("fleet.tasks.cleanup_hub_artifacts.subprocess.run")
-def test_cleanup_certificate_in_openshift_ingress(mock_run, mock_sleep, monkeypatch):
-    monkeypatch.setenv("FLEET_CONFIGMAP_LOADED", "true")
+def test_cleanup_certificate_in_openshift_ingress(mock_run, mock_sleep):
     mock_run.return_value = _run([])
     with mock.patch("sys.argv", ["prog", "--cluster-name", "test-cluster"]):
         main()
@@ -146,8 +139,7 @@ def test_cleanup_certificate_in_openshift_ingress(mock_run, mock_sleep, monkeypa
 
 @mock.patch("fleet.tasks.cleanup_hub_artifacts.time.sleep")
 @mock.patch("fleet.tasks.cleanup_hub_artifacts.subprocess.run")
-def test_cleanup_cert_manager_aws_secret(mock_run, mock_sleep, monkeypatch):
-    monkeypatch.setenv("FLEET_CONFIGMAP_LOADED", "true")
+def test_cleanup_cert_manager_aws_secret(mock_run, mock_sleep):
     mock_run.return_value = _run([])
     with mock.patch("sys.argv", ["prog", "--cluster-name", "test-cluster"]):
         main()
@@ -168,8 +160,7 @@ def test_cleanup_cert_manager_aws_secret(mock_run, mock_sleep, monkeypatch):
 
 @mock.patch("fleet.tasks.cleanup_hub_artifacts.time.sleep")
 @mock.patch("fleet.tasks.cleanup_hub_artifacts.subprocess.run")
-def test_sleep_called_after_crossplane_deletes(mock_run, mock_sleep, monkeypatch):
-    monkeypatch.setenv("FLEET_CONFIGMAP_LOADED", "true")
+def test_sleep_called_after_crossplane_deletes(mock_run, mock_sleep):
     call_order = []
 
     def track_run(args, **kwargs):

@@ -8,18 +8,13 @@ and ClusterDeployment. All operations are idempotent via --ignore-not-found.
 import argparse
 import subprocess
 
-from fleet.tasks._env import check_configmap_env, resolve_required
 from fleet.tasks._log import configure, info
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--cluster-name", default=None)
+    parser.add_argument("--cluster-name", required=True)
     args = parser.parse_args()
-    check_configmap_env()
-    args.cluster_name = resolve_required(
-        args.cluster_name, "cluster-name", "delete-cluster-resources"
-    )
 
     cluster = args.cluster_name
     configure("delete-cluster-resources")

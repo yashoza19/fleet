@@ -8,25 +8,17 @@ import argparse
 import subprocess
 import sys
 
-from fleet.tasks._env import resolve_batch
 from fleet.tasks._log import configure, error, info
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--cluster-name", default=None)
-    parser.add_argument("--source-dir", default=None)
-    parser.add_argument("--spoke-kubeconfig", default=None)
+    parser.add_argument("--cluster-name", required=True)
+    parser.add_argument("--source-dir", required=True)
+    parser.add_argument("--spoke-kubeconfig", required=True)
     args = parser.parse_args()
 
-    resolve_batch(
-        args,
-        "apply-base-workloads",
-        required=["cluster_name", "source_dir", "spoke_kubeconfig"],
-    )
-
     cluster = args.cluster_name
-
     configure("apply-base-workloads")
 
     info("=== Applying base workloads to spoke cluster ===")

@@ -9,8 +9,7 @@ from fleet.tasks.request_ssl_cert import main
 
 
 @mock.patch("fleet.tasks.request_ssl_cert.subprocess.run")
-def test_request_cert_success(mock_run, monkeypatch):
-    monkeypatch.setenv("FLEET_CONFIGMAP_LOADED", "true")
+def test_request_cert_success(mock_run):
     mock_run.return_value = subprocess.CompletedProcess(
         [],
         returncode=0,
@@ -37,8 +36,7 @@ def test_request_cert_success(mock_run, monkeypatch):
 
 
 @mock.patch("fleet.tasks.request_ssl_cert.subprocess.run")
-def test_request_cert_multiple_dns_zones(mock_run, monkeypatch):
-    monkeypatch.setenv("FLEET_CONFIGMAP_LOADED", "true")
+def test_request_cert_multiple_dns_zones(mock_run):
     mock_run.return_value = subprocess.CompletedProcess(
         [], returncode=0, stdout="created", stderr=""
     )
@@ -66,8 +64,7 @@ def test_request_cert_multiple_dns_zones(mock_run, monkeypatch):
 
 
 @mock.patch("fleet.tasks.request_ssl_cert.subprocess.run")
-def test_request_cert_uses_cluster_name_in_cert(mock_run, monkeypatch):
-    monkeypatch.setenv("FLEET_CONFIGMAP_LOADED", "true")
+def test_request_cert_uses_cluster_name_in_cert(mock_run):
     mock_run.return_value = subprocess.CompletedProcess(
         [], returncode=0, stdout="created", stderr=""
     )
@@ -83,8 +80,7 @@ def test_request_cert_uses_cluster_name_in_cert(mock_run, monkeypatch):
 
 
 @mock.patch("fleet.tasks.request_ssl_cert.subprocess.run")
-def test_request_cert_fails(mock_run, monkeypatch):
-    monkeypatch.setenv("FLEET_CONFIGMAP_LOADED", "true")
+def test_request_cert_fails(mock_run):
     mock_run.return_value = subprocess.CompletedProcess(
         [], returncode=1, stdout="", stderr="forbidden"
     )

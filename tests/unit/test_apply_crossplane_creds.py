@@ -8,8 +8,7 @@ from fleet.tasks.apply_crossplane_creds import main
 
 
 @mock.patch("fleet.tasks.apply_crossplane_creds.subprocess.run")
-def test_apply_success(mock_run, monkeypatch):
-    monkeypatch.setenv("FLEET_CONFIGMAP_LOADED", "true")
+def test_apply_success(mock_run):
     mock_run.side_effect = [
         subprocess.CompletedProcess(
             [], returncode=0, stdout="apiVersion: v1\nkind: User", stderr=""
@@ -29,8 +28,7 @@ def test_apply_success(mock_run, monkeypatch):
 
 
 @mock.patch("fleet.tasks.apply_crossplane_creds.subprocess.run")
-def test_kustomize_build_fails(mock_run, monkeypatch):
-    monkeypatch.setenv("FLEET_CONFIGMAP_LOADED", "true")
+def test_kustomize_build_fails(mock_run):
     mock_run.return_value = subprocess.CompletedProcess(
         [], returncode=1, stdout="", stderr="error"
     )
@@ -42,8 +40,7 @@ def test_kustomize_build_fails(mock_run, monkeypatch):
 
 
 @mock.patch("fleet.tasks.apply_crossplane_creds.subprocess.run")
-def test_oc_apply_fails(mock_run, monkeypatch):
-    monkeypatch.setenv("FLEET_CONFIGMAP_LOADED", "true")
+def test_oc_apply_fails(mock_run):
     mock_run.side_effect = [
         subprocess.CompletedProcess([], returncode=0, stdout="yaml-content", stderr=""),
         subprocess.CompletedProcess([], returncode=1, stdout="", stderr="forbidden"),

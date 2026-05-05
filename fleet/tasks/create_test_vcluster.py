@@ -8,7 +8,6 @@ import sys
 import textwrap
 import time
 
-from fleet.tasks._env import resolve_batch
 from fleet.tasks._log import configure, error, info
 
 
@@ -69,21 +68,14 @@ def _generate_values(
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--cluster-name", default=None)
-    parser.add_argument("--namespace", default=None)
-    parser.add_argument("--output-dir", default=None)
-    parser.add_argument("--values-file", default=None)
-    parser.add_argument("--extra-sans", nargs="*", default=None)
-    parser.add_argument("--route-san", default=None)
+    parser.add_argument("--cluster-name", required=True)
+    parser.add_argument("--namespace", required=True)
+    parser.add_argument("--output-dir", required=True)
+    parser.add_argument("--values-file", required=False)
+    parser.add_argument("--extra-sans", nargs="*", default=[])
+    parser.add_argument("--route-san", required=False, default=None)
     args = parser.parse_args()
 
-    resolve_batch(
-        args,
-        "create-test-vcluster",
-        required=["cluster_name", "namespace", "output_dir"],
-        optional=["values_file", "route_san"],
-        list_args=["extra_sans"],
-    )
     configure("create-test-vcluster")
 
     info("=== Creating test vCluster ===")

@@ -5,23 +5,16 @@ import subprocess
 import sys
 import time
 
-from fleet.tasks._env import check_configmap_env, resolve_required
 from fleet.tasks._log import configure, error, info
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--cluster-name", default=None)
-    parser.add_argument("--namespace", default=None)
+    parser.add_argument("--cluster-name", required=True)
+    parser.add_argument("--namespace", required=True)
     args = parser.parse_args()
 
-    check_configmap_env()
-    cluster = resolve_required(
-        args.cluster_name, "cluster-name", "delete-test-vcluster"
-    )
-    args.namespace = resolve_required(
-        args.namespace, "namespace", "delete-test-vcluster"
-    )
+    cluster = args.cluster_name
     configure("delete-test-vcluster")
 
     info("=== Deleting test vCluster ===")
@@ -75,9 +68,7 @@ def main() -> None:
     )
     info(f"  -> vcluster delete exit code: {result.returncode}")
     if result.returncode != 0:
-        info(
-            f"vcluster delete failed ({result.stderr.strip()}), falling back to namespace delete"
-        )
+        info(f"vcluster delete failed ({result.stderr.strip()}), falling back to namespace delete")
         result = subprocess.run(
             ["oc", "delete", "namespace", args.namespace, "--ignore-not-found=true"],
             capture_output=True,

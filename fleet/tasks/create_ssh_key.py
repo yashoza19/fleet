@@ -13,17 +13,13 @@ import sys
 
 import tempfile
 
-from fleet.tasks._env import resolve_required
 from fleet.tasks._log import configure, error, info
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--cluster-name", default=None)
+    parser.add_argument("--cluster-name", required=True)
     args = parser.parse_args()
-    args.cluster_name = resolve_required(
-        args.cluster_name, "cluster-name", "create-ssh-key"
-    )
 
     cluster = args.cluster_name
     secret_name = f"{cluster}-ssh-key"

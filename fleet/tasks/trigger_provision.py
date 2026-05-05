@@ -9,19 +9,24 @@ import subprocess
 import sys
 import textwrap
 
-from fleet.tasks._env import check_configmap_env, resolve_required
 from fleet.tasks._log import configure, error, info
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--cluster-name", default=None)
+    parser.add_argument("--cluster-name", required=True)
+    parser.add_argument("--base-domain", required=True)
+    parser.add_argument("--keycloak-issuer-url", required=True)
+    parser.add_argument("--keycloak-url", required=True)
+    parser.add_argument("--keycloak-realm", required=True)
+    parser.add_argument("--keycloak-admin-secret", required=True)
+    parser.add_argument("--auth-realm", required=True)
+    parser.add_argument("--acme-email", required=True)
     args = parser.parse_args()
 
-    check_configmap_env()
-    cluster = resolve_required(args.cluster_name, "cluster-name", "trigger-provision")
-
     configure("trigger-provision")
+
+    cluster = args.cluster_name
 
     info("=== Triggering provision pipeline ===")
     info(f"  cluster-name={cluster}")
@@ -37,6 +42,20 @@ def main() -> None:
           params:
             - name: cluster-name
               value: {cluster}
+            - name: base-domain
+              value: {args.base_domain}
+            - name: keycloak-issuer-url
+              value: {args.keycloak_issuer_url}
+            - name: keycloak-url
+              value: {args.keycloak_url}
+            - name: keycloak-realm
+              value: {args.keycloak_realm}
+            - name: keycloak-admin-secret
+              value: {args.keycloak_admin_secret}
+            - name: auth-realm
+              value: {args.auth_realm}
+            - name: acme-email
+              value: {args.acme_email}
           taskRunTemplate:
             serviceAccountName: fleet-pipeline
             podTemplate:
@@ -44,9 +63,6 @@ def main() -> None:
                 fsGroup: 0
               imagePullSecrets:
                 - name: fleet-pipeline-pull-secret
-              envFrom:
-                - configMapRef:
-                    name: fleet-pipeline-defaults
           workspaces:
             - name: shared-workspace
               volumeClaimTemplate:

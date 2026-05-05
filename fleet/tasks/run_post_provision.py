@@ -7,7 +7,6 @@ import sys
 import textwrap
 import time
 
-from fleet.tasks._env import check_configmap_env, resolve, resolve_required
 from fleet.tasks._log import configure, error, info
 
 POLL_INTERVAL = 30
@@ -15,20 +14,16 @@ POLL_INTERVAL = 30
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--cluster-name", default=None)
-    parser.add_argument("--tier", default=None)
+    parser.add_argument("--cluster-name", required=True)
+    parser.add_argument("--tier", required=True)
     parser.add_argument("--namespace", required=True)
-    parser.add_argument("--pipeline-image", default=None)
+    parser.add_argument(
+        "--pipeline-image", default="quay.io/rhopl/fleet-pipeline:latest"
+    )
     parser.add_argument("--timeout", type=int, default=600)
     args = parser.parse_args()
 
-    check_configmap_env()
-    cluster = resolve_required(args.cluster_name, "cluster-name", "run-post-provision")
-    args.tier = resolve_required(args.tier, "tier", "run-post-provision")
-    args.pipeline_image = (
-        resolve(args.pipeline_image, "pipeline-image", "run-post-provision")
-        or "quay.io/rhopl/fleet-pipeline:latest"
-    )
+    cluster = args.cluster_name
     configure("run-post-provision")
 
     info("=== Running post-provision pipeline for vCluster ===")
@@ -58,6 +53,16 @@ def main() -> None:
               value: "false"
             - name: spoke-kubeconfig
               value: {spoke_kubeconfig}
+            - name: keycloak-url
+              value: "https://placeholder"
+            - name: keycloak-realm
+              value: placeholder
+            - name: keycloak-admin-secret
+              value: placeholder
+            - name: auth-realm
+              value: placeholder
+            - name: dns-zones
+              value: placeholder
             - name: pipeline-image
               value: {args.pipeline_image}
           taskRunTemplate:
@@ -67,9 +72,6 @@ def main() -> None:
                 fsGroup: 0
               imagePullSecrets:
                 - name: fleet-pipeline-pull-secret
-              envFrom:
-                - configMapRef:
-                    name: fleet-pipeline-defaults
           workspaces:
             - name: shared-workspace
               volumeClaimTemplate:

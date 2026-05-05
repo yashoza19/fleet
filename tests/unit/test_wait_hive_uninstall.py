@@ -18,8 +18,7 @@ def _run_fail(args, **kwargs):
 
 
 @mock.patch("fleet.tasks.wait_hive_uninstall.subprocess.run")
-def test_cd_exists_wait_succeeds(mock_run, monkeypatch):
-    monkeypatch.setenv("FLEET_CONFIGMAP_LOADED", "true")
+def test_cd_exists_wait_succeeds(mock_run):
     mock_run.side_effect = [_run([]), _run([])]
     with mock.patch("sys.argv", ["prog", "--cluster-name", "test-cluster"]):
         main()
@@ -52,8 +51,7 @@ def test_cd_exists_wait_succeeds(mock_run, monkeypatch):
 
 
 @mock.patch("fleet.tasks.wait_hive_uninstall.subprocess.run")
-def test_cd_already_gone(mock_run, monkeypatch):
-    monkeypatch.setenv("FLEET_CONFIGMAP_LOADED", "true")
+def test_cd_already_gone(mock_run):
     mock_run.return_value = _run_fail([])
     with mock.patch("sys.argv", ["prog", "--cluster-name", "test-cluster"]):
         main()
@@ -61,8 +59,7 @@ def test_cd_already_gone(mock_run, monkeypatch):
 
 
 @mock.patch("fleet.tasks.wait_hive_uninstall.subprocess.run")
-def test_wait_timeout_exits_1(mock_run, monkeypatch):
-    monkeypatch.setenv("FLEET_CONFIGMAP_LOADED", "true")
+def test_wait_timeout_exits_1(mock_run):
     mock_run.side_effect = [_run([]), _run_fail([])]
     with mock.patch("sys.argv", ["prog", "--cluster-name", "test-cluster"]):
         with pytest.raises(SystemExit, match="1"):
@@ -70,8 +67,7 @@ def test_wait_timeout_exits_1(mock_run, monkeypatch):
 
 
 @mock.patch("fleet.tasks.wait_hive_uninstall.subprocess.run")
-def test_custom_timeout(mock_run, monkeypatch):
-    monkeypatch.setenv("FLEET_CONFIGMAP_LOADED", "true")
+def test_custom_timeout(mock_run):
     mock_run.side_effect = [_run([]), _run([])]
     with mock.patch(
         "sys.argv",
@@ -82,8 +78,7 @@ def test_custom_timeout(mock_run, monkeypatch):
 
 
 @mock.patch("fleet.tasks.wait_hive_uninstall.subprocess.run")
-def test_default_timeout(mock_run, monkeypatch):
-    monkeypatch.setenv("FLEET_CONFIGMAP_LOADED", "true")
+def test_default_timeout(mock_run):
     mock_run.side_effect = [_run([]), _run([])]
     with mock.patch("sys.argv", ["prog", "--cluster-name", "test-cluster"]):
         main()

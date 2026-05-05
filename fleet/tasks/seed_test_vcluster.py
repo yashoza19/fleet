@@ -6,24 +6,17 @@ import subprocess
 import sys
 import textwrap
 
-from fleet.tasks._env import resolve_batch
 from fleet.tasks._log import configure, error, info
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--cluster-name", default=None)
-    parser.add_argument("--kubeconfig-file", default=None)
-    parser.add_argument("--tier", default=None)
-    parser.add_argument("--create-aws-creds", action="store_true", default=False)
+    parser.add_argument("--cluster-name", required=True)
+    parser.add_argument("--kubeconfig-file", required=True)
+    parser.add_argument("--tier", required=True)
+    parser.add_argument("--create-aws-creds", action="store_true")
     args = parser.parse_args()
 
-    resolve_batch(
-        args,
-        "seed-test-vcluster",
-        required=["cluster_name", "kubeconfig_file", "tier"],
-        bool_flags=["create_aws_creds"],
-    )
     cluster = args.cluster_name
     configure("seed-test-vcluster")
 

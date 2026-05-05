@@ -9,10 +9,16 @@
   value: 379b5094-ibmvirt
 - op: replace
   path: /spec/platform/aws/type
-  value: c5d.metal
+  value: m8i.4xlarge
 - op: replace
   path: /spec/platform/aws/rootVolume/size
-  value: 256
+  value: 128
+- op: replace
+  path: /spec/platform/aws/zones
+  value:
+    - us-east-2a
+    - us-east-2b
+    - us-east-2c
 - op: replace
   path: /spec/replicas
   value: 1

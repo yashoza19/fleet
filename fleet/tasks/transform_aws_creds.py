@@ -11,17 +11,13 @@ import binascii
 import subprocess
 import sys
 
-from fleet.tasks._env import resolve_required
 from fleet.tasks._log import configure, error, info
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--cluster-name", default=None)
+    parser.add_argument("--cluster-name", required=True)
     args = parser.parse_args()
-    args.cluster_name = resolve_required(
-        args.cluster_name, "cluster-name", "transform-aws-creds"
-    )
 
     cluster = args.cluster_name
     configure("transform-aws-creds")
